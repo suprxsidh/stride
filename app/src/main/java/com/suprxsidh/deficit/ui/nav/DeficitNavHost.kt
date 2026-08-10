@@ -1,6 +1,7 @@
 package com.suprxsidh.deficit.ui.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,8 +11,8 @@ import com.suprxsidh.deficit.ui.onboarding.OnboardingScreen
 import com.suprxsidh.deficit.ui.weight.WeightScreen
 
 @Composable
-fun DeficitNavHost(navController: NavHostController, startDestination: String) {
-    NavHost(navController = navController, startDestination = startDestination) {
+fun DeficitNavHost(navController: NavHostController, startDestination: String, modifier: Modifier = Modifier) {
+    NavHost(navController = navController, startDestination = startDestination, modifier = modifier) {
         composable(Routes.ONBOARDING) {
             OnboardingScreen(onComplete = {
                 navController.navigate(Routes.DASHBOARD) {
