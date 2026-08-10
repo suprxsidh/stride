@@ -1,0 +1,52 @@
+package com.suprxsidh.deficit.data.repository
+
+import com.suprxsidh.deficit.data.calc.CalorieMath
+import com.suprxsidh.deficit.data.calc.DayBoundary
+import com.suprxsidh.deficit.data.db.dao.CustomFoodDao
+import com.suprxsidh.deficit.data.db.dao.FoodEntryDao
+import com.suprxsidh.deficit.data.db.entity.CustomFoodEntity
+import com.suprxsidh.deficit.data.db.entity.FoodEntryEntity
+import kotlinx.coroutines.flow.Flow
+import java.time.LocalDateTime
+import java.time.ZoneId
+import kotlin.math.roundToInt
+
+class FoodRepository(
+    private val foodEntryDao: FoodEntryDao,
+    private val customFoodDao: CustomFoodDao,
+    private val clock: () -> LocalDateTime = { LocalDateTime.now() }
+) {
+    private fun todayKey(): String = DayBoundary.logicalDate(clock()).toString()
+    private fun nowMillis(): Long = clock().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    private suspend fun log(name: String, rawKcal: Int, source: String, barcode: String? = null): FoodEntryEntity {
+        val entity = FoodEntryEntity(
+            date = todayKey(),
+            name = name,
+            rawKcal = rawKcal,
+            bufferedKcal = CalorieMath.bufferedKcal(rawKcal),
+            source = source,
+            offBarcode = barcode,
+            loggedAt = nowMillis()
+        )
+        val id = foodEntryDao.insert(entity)
+        return entity.copy(id = id)
+    }
+
+    suspend fun logQuickAdd(name: String, rawKcal: Int): FoodEntryEntity = log(name, rawKcal, "QUICK")
+
+    suspend fun logCustomFood(food: CustomFoodEntity, servings: Double): FoodEntryEntity =
+        log(food.name, (food.kcalPerServing * servings).roundToInt(), "CUSTOM")
+
+    suspend fun logOffProduct(name: String, rawKcal: Int, barcode: String): FoodEntryEntity =
+        log(name, rawKcal, "OFF", barcode)
+
+    fun observeTodayEntries(): Flow<List<FoodEntryEntity>> = foodEntryDao.observeForDate(todayKey())
+    fun observeTodayBufferedTotal(): Flow<Int> = foodEntryDao.observeBufferedTotalForDate(todayKey())
+
+    fun observeAllCustomFoods(): Flow<List<CustomFoodEntity>> = customFoodDao.observeAll()
+    fun observePinnedCustomFoods(): Flow<List<CustomFoodEntity>> = customFoodDao.observePinned()
+    suspend fun upsertCustomFood(food: CustomFoodEntity): Long = customFoodDao.upsert(food)
+    suspend fun deleteCustomFood(food: CustomFoodEntity) = customFoodDao.delete(food)
+    suspend fun deleteFoodEntry(entry: FoodEntryEntity) = foodEntryDao.delete(entry)
+}
