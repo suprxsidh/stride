@@ -19,7 +19,9 @@ fun DeficitNavHost(navController: NavHostController, startDestination: String) {
                 }
             })
         }
-        composable(Routes.DASHBOARD) { DashboardScreen() }
+        composable(Routes.DASHBOARD) {
+            DashboardScreen(onQuickAdd = { navController.navigate(Routes.FOOD_LOG) })
+        }
         composable(Routes.FOOD_LOG) { FoodLogScreen() }
         composable(Routes.WEIGHT) { WeightScreen() }
     }
