@@ -12,7 +12,13 @@ import com.suprxsidh.deficit.ui.weight.WeightScreen
 @Composable
 fun DeficitNavHost(navController: NavHostController, startDestination: String) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable(Routes.ONBOARDING) { OnboardingScreen() }
+        composable(Routes.ONBOARDING) {
+            OnboardingScreen(onComplete = {
+                navController.navigate(Routes.DASHBOARD) {
+                    popUpTo(Routes.ONBOARDING) { inclusive = true }
+                }
+            })
+        }
         composable(Routes.DASHBOARD) { DashboardScreen() }
         composable(Routes.FOOD_LOG) { FoodLogScreen() }
         composable(Routes.WEIGHT) { WeightScreen() }

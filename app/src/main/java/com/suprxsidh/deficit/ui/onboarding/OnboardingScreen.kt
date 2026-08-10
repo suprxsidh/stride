@@ -1,14 +1,76 @@
 package com.suprxsidh.deficit.ui.onboarding
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.suprxsidh.deficit.DeficitApp
+import com.suprxsidh.deficit.data.calc.Sex
+import kotlinx.coroutines.launch
 
 @Composable
-fun OnboardingScreen() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text("Onboarding — Task 5 replaces this")
+fun OnboardingScreen(onComplete: () -> Unit) {
+    val app = LocalContext.current.applicationContext as DeficitApp
+    val viewModel: OnboardingViewModel = viewModel(factory = viewModelFactory {
+        initializer { OnboardingViewModel(app.container.userProfileRepository) }
+    })
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("A few numbers to start", style = MaterialTheme.typography.titleLarge)
+
+        OutlinedTextField(
+            value = viewModel.heightCm,
+            onValueChange = { viewModel.heightCm = it },
+            label = { Text("Height (cm)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = viewModel.weightKg,
+            onValueChange = { viewModel.weightKg = it },
+            label = { Text("Weight (kg)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = viewModel.age,
+            onValueChange = { viewModel.age = it },
+            label = { Text("Age") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = viewModel.sex == Sex.MALE, onClick = { viewModel.sex = Sex.MALE }, label = { Text("Male") })
+            FilterChip(selected = viewModel.sex == Sex.FEMALE, onClick = { viewModel.sex = Sex.FEMALE }, label = { Text("Female") })
+        }
+        OutlinedTextField(
+            value = viewModel.goalWeightKg,
+            onValueChange = { viewModel.goalWeightKg = it },
+            label = { Text("Goal weight (kg) — optional, defaults to current − 10") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        viewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+        Button(onClick = { scope.launch { viewModel.submit(onComplete) } }, modifier = Modifier.fillMaxWidth()) {
+            Text("Get started")
+        }
     }
 }
