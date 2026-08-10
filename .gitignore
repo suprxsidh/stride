@@ -1,0 +1,24 @@
+# Build outputs
+/build/
+**/build/
+app/build/
+*.apk
+
+# Gradle cache
+/.gradle/
+.gradle/
+
+# Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+captures/
+.cxx/
+
+# Local properties (machine-specific)
+local.properties
+
+# OS
+.DS_Store
+thumbs.db
