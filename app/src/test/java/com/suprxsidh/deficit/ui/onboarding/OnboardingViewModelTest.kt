@@ -26,7 +26,7 @@ class OnboardingViewModelTest {
     fun setUp() {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), DeficitDatabase::class.java)
             .allowMainThreadQueries().build()
-        viewModel = OnboardingViewModel(UserProfileRepository(db.userProfileDao()))
+        viewModel = OnboardingViewModel(UserProfileRepository(db.userProfileDao(), db.weighInDao()))
     }
 
     @After

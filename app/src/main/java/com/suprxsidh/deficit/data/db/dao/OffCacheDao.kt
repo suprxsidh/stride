@@ -17,4 +17,7 @@ interface OffCacheDao {
 
     @Query("SELECT * FROM off_cache ORDER BY cachedAt DESC LIMIT 50")
     fun observeRecent(): Flow<List<OffCacheEntity>>
+
+    @Query("SELECT * FROM off_cache WHERE productName LIKE '%' || :query || '%' ORDER BY cachedAt DESC LIMIT 20")
+    suspend fun searchCached(query: String): List<OffCacheEntity>
 }

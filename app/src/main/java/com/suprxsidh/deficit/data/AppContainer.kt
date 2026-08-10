@@ -10,7 +10,7 @@ import com.suprxsidh.deficit.food.off.OpenFoodFactsServiceFactory
 
 class AppContainer(context: Context) {
     private val database = DeficitDatabase.getInstance(context)
-    val userProfileRepository = UserProfileRepository(database.userProfileDao())
+    val userProfileRepository = UserProfileRepository(database.userProfileDao(), database.weighInDao())
     val foodRepository = FoodRepository(database.foodEntryDao(), database.customFoodDao())
     val weightRepository = WeightRepository(database.weighInDao())
     val openFoodFactsRepository = OpenFoodFactsRepository(

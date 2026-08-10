@@ -61,9 +61,12 @@ class FoodLogViewModel(
         if (query.isBlank()) return
         viewModelScope.launch {
             offSearchInFlight = true
-            offResults = offRepository.search(query)
-            offSearchInFlight = false
-            offSearchedOnce = true
+            try {
+                offResults = offRepository.search(query)
+                offSearchedOnce = true
+            } finally {
+                offSearchInFlight = false
+            }
         }
     }
 
@@ -92,5 +95,9 @@ class FoodLogViewModel(
 
     fun deleteCustomFood(food: CustomFoodEntity) {
         viewModelScope.launch { foodRepository.deleteCustomFood(food) }
+    }
+
+    fun deleteFoodEntry(entry: FoodEntryEntity) {
+        viewModelScope.launch { foodRepository.deleteFoodEntry(entry) }
     }
 }

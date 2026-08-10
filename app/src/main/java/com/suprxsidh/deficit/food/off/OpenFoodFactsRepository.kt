@@ -2,6 +2,8 @@ package com.suprxsidh.deficit.food.off
 
 import com.suprxsidh.deficit.data.db.dao.OffCacheDao
 import com.suprxsidh.deficit.data.db.entity.OffCacheEntity
+import kotlinx.serialization.SerializationException
+import retrofit2.HttpException
 import java.io.IOException
 
 class OpenFoodFactsRepository(
@@ -13,7 +15,11 @@ class OpenFoodFactsRepository(
         val response = try {
             api.search(searchTerms = query)
         } catch (e: IOException) {
-            return emptyList()
+            return cacheDao.searchCached(query)
+        } catch (e: HttpException) {
+            return cacheDao.searchCached(query)
+        } catch (e: SerializationException) {
+            return cacheDao.searchCached(query)
         }
 
         val now = clock()

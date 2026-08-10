@@ -5,7 +5,7 @@
 
     <application
         android:name=".DeficitApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:label="Deficit"
         android:theme="@android:style/Theme.Material.NoActionBar">
 

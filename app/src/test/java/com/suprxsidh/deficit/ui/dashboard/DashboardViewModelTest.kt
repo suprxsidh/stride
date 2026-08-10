@@ -41,7 +41,7 @@ class DashboardViewModelTest {
             .allowMainThreadQueries().build()
         viewModel = DashboardViewModel(
             FoodRepository(db.foodEntryDao(), db.customFoodDao()) { java.time.LocalDateTime.of(2026, 8, 10, 12, 0) },
-            UserProfileRepository(db.userProfileDao()),
+            UserProfileRepository(db.userProfileDao(), db.weighInDao()),
             WeightRepository(db.weighInDao())
         )
     }
@@ -70,13 +70,18 @@ class DashboardViewModelTest {
     fun `today buffered total reflects logged entries`() = runTest(testDispatcher) {
         db.foodEntryDao().insert(FoodEntryEntity(date = "2026-08-10", name = "Test", rawKcal = 200, bufferedKcal = 220, source = "QUICK", offBarcode = null, loggedAt = 1L))
         backgroundScope.launch { viewModel.todayBufferedTotal.collect {} }
-        testDispatcher.scheduler.advanceUntilIdle()
+        // FoodRepository.observeTodayBufferedTotal() now polls the logical date on a `while (true) { delay(...) }`
+        // loop (see FoodRepository.todayKeyFlow) so the day boundary re-evaluates without an app restart.
+        // advanceUntilIdle() would never return against that — it keeps advancing the virtual clock through
+        // every future poll forever. runCurrent() drains everything scheduled at the *current* virtual instant
+        // (the initial emission + the Room query chain), which is all this test needs.
+        testDispatcher.scheduler.runCurrent()
         assertEquals(220, viewModel.todayBufferedTotal.value)
     }
 
     @Test
     fun `after onboarding the profile reflects the computed soft budget`() = runTest(testDispatcher) {
-        UserProfileRepository(db.userProfileDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
         backgroundScope.launch { viewModel.profile.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(1645, viewModel.profile.value?.softBudgetKcal)

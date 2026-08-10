@@ -1,15 +1,19 @@
 package com.suprxsidh.deficit.data.repository
 
 import com.suprxsidh.deficit.data.calc.CalorieMath
+import com.suprxsidh.deficit.data.calc.DayBoundary
 import com.suprxsidh.deficit.data.calc.Sex
 import com.suprxsidh.deficit.data.db.dao.UserProfileDao
+import com.suprxsidh.deficit.data.db.dao.WeighInDao
 import com.suprxsidh.deficit.data.db.entity.UserProfileEntity
+import com.suprxsidh.deficit.data.db.entity.WeighInEntity
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDateTime
 import java.time.ZoneId
 
 class UserProfileRepository(
     private val userProfileDao: UserProfileDao,
+    private val weighInDao: WeighInDao,
     private val clock: () -> LocalDateTime = { LocalDateTime.now() }
 ) {
     fun observeProfile(): Flow<UserProfileEntity?> = userProfileDao.observe()
@@ -34,6 +38,9 @@ class UserProfileRepository(
             createdAt = clock().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
         userProfileDao.upsert(entity)
+        weighInDao.upsert(
+            WeighInEntity(date = DayBoundary.logicalDate(clock()).toString(), weightKg = weightKg)
+        )
         return entity
     }
 }

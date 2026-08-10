@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -15,11 +17,16 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -58,7 +65,14 @@ fun FoodLogScreen() {
             OutlinedTextField(value = viewModel.quickAddName, onValueChange = { viewModel.quickAddName = it }, label = { Text("Food name") }, modifier = Modifier.fillMaxWidth())
         }
         item {
-            OutlinedTextField(value = viewModel.quickAddKcal, onValueChange = { viewModel.quickAddKcal = it }, label = { Text("Calories") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = viewModel.quickAddKcal,
+                onValueChange = { viewModel.quickAddKcal = it },
+                label = { Text("Calories") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
         item { Button(onClick = { viewModel.logQuickAdd() }) { Text("Add") } }
 
@@ -88,7 +102,14 @@ fun FoodLogScreen() {
             OutlinedTextField(value = viewModel.customFoodName, onValueChange = { viewModel.customFoodName = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
         }
         item {
-            OutlinedTextField(value = viewModel.customFoodKcal, onValueChange = { viewModel.customFoodKcal = it }, label = { Text("Calories per serving") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = viewModel.customFoodKcal,
+                onValueChange = { viewModel.customFoodKcal = it },
+                label = { Text("Calories per serving") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
         item {
             OutlinedTextField(value = viewModel.customFoodServingLabel, onValueChange = { viewModel.customFoodServingLabel = it }, label = { Text("Serving label (optional)") }, modifier = Modifier.fillMaxWidth())
@@ -100,10 +121,21 @@ fun FoodLogScreen() {
             }
         }
         items(customFoods) { food ->
+            var servingsText by remember(food.name) { mutableStateOf("1") }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("${food.name} (${food.kcalPerServing} kcal / ${food.servingLabel})")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { viewModel.logCustomFoodWithServings(food, 1.0) }) { Text("Log") }
+                    OutlinedTextField(
+                        value = servingsText,
+                        onValueChange = { servingsText = it },
+                        label = { Text("Servings") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.width(90.dp)
+                    )
+                    Button(onClick = {
+                        viewModel.logCustomFoodWithServings(food, servingsText.toDoubleOrNull() ?: 1.0)
+                    }) { Text("Log") }
                     Button(onClick = { viewModel.deleteCustomFood(food) }) { Text("Delete") }
                 }
             }
@@ -112,7 +144,10 @@ fun FoodLogScreen() {
         item { Divider() }
         item { Text(if (entries.isEmpty()) "Nothing logged yet today." else "Logged today", style = MaterialTheme.typography.bodyLarge) }
         items(entries) { entry ->
-            Text("${entry.name}: logged ${entry.rawKcal} → counted ${entry.bufferedKcal}")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("${entry.name}: logged ${entry.rawKcal} → counted ${entry.bufferedKcal}")
+                TextButton(onClick = { viewModel.deleteFoodEntry(entry) }) { Text("Delete") }
+            }
         }
     }
 }

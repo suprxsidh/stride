@@ -64,4 +64,38 @@ class OpenFoodFactsRepositoryTest {
         val results = repo.search("anything")
         assertTrue(results.isEmpty())
     }
+
+    @Test
+    fun `search on a non-2xx response returns an empty list, not a crash`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+        val results = repo.search("anything")
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun `search on malformed JSON returns an empty list, not a crash`() = runTest {
+        server.enqueue(MockResponse().setBody("not json at all").setResponseCode(200))
+        val results = repo.search("anything")
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun `a failed search falls back to the local cache instead of showing no results`() = runTest {
+        val body = """
+            {"products": [
+                {"code": "8901058851031", "product_name": "Amul Chaas", "nutriments": {"energy-kcal_serving": 45.0}}
+            ]}
+        """.trimIndent()
+        server.enqueue(MockResponse().setBody(body).setResponseCode(200))
+        val firstResults = repo.search("chaas")
+        assertEquals(1, firstResults.size) // cached successfully
+
+        // Now simulate offline/failure: the exact same query should still surface the previously
+        // cached product instead of an empty list.
+        server.enqueue(MockResponse().setResponseCode(500))
+        val offlineResults = repo.search("chaas")
+
+        assertEquals(1, offlineResults.size)
+        assertEquals("Amul Chaas", offlineResults[0].productName)
+    }
 }

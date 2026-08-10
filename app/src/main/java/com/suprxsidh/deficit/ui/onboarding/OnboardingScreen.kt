@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -42,18 +44,24 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             value = viewModel.heightCm,
             onValueChange = { viewModel.heightCm = it },
             label = { Text("Height (cm)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = viewModel.weightKg,
             onValueChange = { viewModel.weightKg = it },
             label = { Text("Weight (kg)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = viewModel.age,
             onValueChange = { viewModel.age = it },
             label = { Text("Age") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -64,6 +72,8 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             value = viewModel.goalWeightKg,
             onValueChange = { viewModel.goalWeightKg = it },
             label = { Text("Goal weight (kg) — optional, defaults to current − 10") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 

@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
                                                 selected = selected,
                                                 onClick = {
                                                     navController.navigate(destination.route) {
-                                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                                        popUpTo(Routes.DASHBOARD) { saveState = true }
                                                         launchSingleTop = true
                                                         restoreState = true
                                                     }

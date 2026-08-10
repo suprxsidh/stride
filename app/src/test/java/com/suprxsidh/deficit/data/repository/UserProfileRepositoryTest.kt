@@ -24,7 +24,7 @@ class UserProfileRepositoryTest {
     fun setUp() {
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), DeficitDatabase::class.java)
             .allowMainThreadQueries().build()
-        repo = UserProfileRepository(db.userProfileDao()) { LocalDateTime.of(2026, 8, 10, 9, 0) }
+        repo = UserProfileRepository(db.userProfileDao(), db.weighInDao()) { LocalDateTime.of(2026, 8, 10, 9, 0) }
     }
 
     @After
@@ -41,5 +41,13 @@ class UserProfileRepositoryTest {
     fun `explicit goal weight overrides the default`() = runTest {
         val profile = repo.completeOnboarding(heightCm = 165.0, weightKg = 65.0, age = 26, sex = Sex.FEMALE, goalWeightKg = 60.0)
         assertEquals(60.0, profile.goalWeightKg, 0.001)
+    }
+
+    @Test
+    fun `completing onboarding also records a weigh-in for that day so the chart isn't empty`() = runTest {
+        repo.completeOnboarding(heightCm = 178.0, weightKg = 80.0, age = 26, sex = Sex.MALE)
+
+        val weighIn = db.weighInDao().getForDate("2026-08-10")
+        assertEquals(80.0, weighIn!!.weightKg, 0.001)
     }
 }

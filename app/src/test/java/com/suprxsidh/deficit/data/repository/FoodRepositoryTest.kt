@@ -6,6 +6,7 @@ import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.db.entity.CustomFoodEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -41,7 +42,7 @@ class FoodRepositoryTest {
     @Test
     fun `an entry logged at 1am counts toward the previous day, not today`() = runTest {
         val lateNightClock = { LocalDateTime.of(2026, 8, 11, 1, 0) } // 1am -> logical date is Aug 10
-        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao(), lateNightClock)
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = lateNightClock)
         repo.logQuickAdd("Late dinner", 300)
 
         // "today" per this same clock is still Aug 10 (before the 3am boundary), so the entry shows up
@@ -61,5 +62,40 @@ class FoodRepositoryTest {
 
         assertEquals(150, entry.rawKcal)
         assertEquals(165, entry.bufferedKcal)
+    }
+
+    @Test
+    fun `crossing the 3am boundary while observing moves today's flows to the new day without recreating the repository`() = runTest {
+        // Mutable fake clock: starts at 11pm Aug 10 (logical date Aug 10), advances past the 3am
+        // boundary into Aug 11 partway through the test. A short poll interval keeps this test fast
+        // without slowing down the real 60s production default.
+        var now = LocalDateTime.of(2026, 8, 10, 23, 0)
+        val repo = FoodRepository(
+            db.foodEntryDao(),
+            db.customFoodDao(),
+            clock = { now },
+            todayPollIntervalMs = 10
+        )
+
+        repo.logQuickAdd("Late night snack", 100)
+        assertEquals(110, repo.observeTodayBufferedTotal().first()) // 100 * 1.1 buffer
+
+        // Roll the clock forward across the 3am boundary into the next logical day, then log an
+        // entry — it's written against 2026-08-11.
+        now = LocalDateTime.of(2026, 8, 11, 4, 0)
+        repo.logQuickAdd("Breakfast", 200)
+        assertEquals(1, db.foodEntryDao().observeForDate("2026-08-11").first().size)
+
+        // The already-existing observeTodayBufferedTotal()/observeTodayEntries() flows (no new
+        // repository instance, no restart) must pick up the new day on their own re-evaluation.
+        val total = withTimeout(5_000) {
+            repo.observeTodayBufferedTotal().first { it == 220 } // 200 * 1.1 buffer
+        }
+        assertEquals(220, total)
+
+        val entries = withTimeout(5_000) {
+            repo.observeTodayEntries().first { it.size == 1 }
+        }
+        assertEquals("Breakfast", entries[0].name)
     }
 }
