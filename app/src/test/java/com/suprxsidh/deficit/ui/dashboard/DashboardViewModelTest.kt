@@ -10,6 +10,7 @@ import com.suprxsidh.deficit.data.repository.UserProfileRepository
 import com.suprxsidh.deficit.data.repository.WeightRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -51,8 +52,16 @@ class DashboardViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // DashboardViewModel's flows use SharingStarted.WhileSubscribed(5_000), matching the
+    // convention in FoodLogViewModel/OnboardingViewModel. That policy only starts collecting
+    // the upstream Room flow once something actively subscribes to the resulting StateFlow —
+    // in the real app this happens immediately via DashboardScreen's collectAsState(), but in a
+    // test that only reads `.value` there is no subscriber. backgroundScope.launch { ... collect {} }
+    // establishes that subscriber (backgroundScope is auto-cancelled when the test ends) so the
+    // upstream flow actually starts and `.value` reflects real emissions.
     @Test
     fun `profile is null before onboarding`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.profile.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertNull(viewModel.profile.value)
     }
@@ -60,6 +69,7 @@ class DashboardViewModelTest {
     @Test
     fun `today buffered total reflects logged entries`() = runTest(testDispatcher) {
         db.foodEntryDao().insert(FoodEntryEntity(date = "2026-08-10", name = "Test", rawKcal = 200, bufferedKcal = 220, source = "QUICK", offBarcode = null, loggedAt = 1L))
+        backgroundScope.launch { viewModel.todayBufferedTotal.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(220, viewModel.todayBufferedTotal.value)
     }
@@ -67,6 +77,7 @@ class DashboardViewModelTest {
     @Test
     fun `after onboarding the profile reflects the computed soft budget`() = runTest(testDispatcher) {
         UserProfileRepository(db.userProfileDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        backgroundScope.launch { viewModel.profile.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(1645, viewModel.profile.value?.softBudgetKcal)
     }

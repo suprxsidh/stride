@@ -18,11 +18,11 @@ class DashboardViewModel(
 ) : ViewModel() {
 
     val profile: StateFlow<UserProfileEntity?> =
-        userProfileRepository.observeProfile().stateIn(viewModelScope, SharingStarted.Eagerly, null)
+        userProfileRepository.observeProfile().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val todayBufferedTotal: StateFlow<Int> =
-        foodRepository.observeTodayBufferedTotal().stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+        foodRepository.observeTodayBufferedTotal().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val rollingAverageSeries: StateFlow<List<Pair<LocalDate, Double>>> =
-        weightRepository.observeRollingAverageSeries().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        weightRepository.observeRollingAverageSeries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 }
