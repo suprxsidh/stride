@@ -6,6 +6,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.suprxsidh.deficit.data.calc.Sex
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
+import com.suprxsidh.deficit.health.HealthConnectManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class OnboardingViewModel(private val repository: UserProfileRepository) : ViewModel() {
     var heightCm by mutableStateOf("")
@@ -15,6 +19,13 @@ class OnboardingViewModel(private val repository: UserProfileRepository) : ViewM
     var goalWeightKg by mutableStateOf("")
     var error by mutableStateOf<String?>(null)
         private set
+
+    private val _healthConnectPermissionsGranted = MutableStateFlow(false)
+    val healthConnectPermissionsGranted: StateFlow<Boolean> = _healthConnectPermissionsGranted.asStateFlow()
+
+    fun onHealthConnectPermissionsResult(granted: Set<String>) {
+        _healthConnectPermissionsGranted.value = granted.containsAll(HealthConnectManager.REQUIRED_PERMISSIONS)
+    }
 
     suspend fun submit(onDone: () -> Unit) {
         val h = heightCm.toDoubleOrNull()
