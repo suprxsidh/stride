@@ -70,10 +70,17 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                     Text("Today's run", style = MaterialTheme.typography.titleMedium)
                     Text("${run.durationMin} min" + (run.distanceM?.let { " · %.1f km".format(it / 1000.0) } ?: ""))
                     Text("${run.kcalReal} kcal · credited: ${run.kcalCredited} kcal (50%)")
-                    TextButton(onClick = onViewRunHistory) {
-                        Text("View run history")
-                    }
                 }
+            }
+        }
+
+        // Unconditional entry point: must not depend on todaysRun being non-null, since a
+        // user can have historical runs synced without having logged one today. Gated on the
+        // repository actually existing so this never leads to the `!!` in RunDetailScreen
+        // being reached with a null repository.
+        if (app.container.healthConnectRepository != null) {
+            TextButton(onClick = onViewRunHistory) {
+                Text("View run history")
             }
         }
 
