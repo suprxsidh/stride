@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.suprxsidh.deficit.ui.dashboard.DashboardScreen
 import com.suprxsidh.deficit.ui.food.FoodLogScreen
+import com.suprxsidh.deficit.ui.health.RunDetailScreen
 import com.suprxsidh.deficit.ui.onboarding.OnboardingScreen
 import com.suprxsidh.deficit.ui.weight.WeightScreen
 
@@ -21,9 +22,13 @@ fun DeficitNavHost(navController: NavHostController, startDestination: String, m
             })
         }
         composable(Routes.DASHBOARD) {
-            DashboardScreen(onQuickAdd = { navController.navigate(Routes.FOOD_LOG) })
+            DashboardScreen(
+                onQuickAdd = { navController.navigate(Routes.FOOD_LOG) },
+                onViewRunHistory = { navController.navigate(Routes.RUN_DETAIL) }
+            )
         }
         composable(Routes.FOOD_LOG) { FoodLogScreen() }
         composable(Routes.WEIGHT) { WeightScreen() }
+        composable(Routes.RUN_DETAIL) { RunDetailScreen() }
     }
 }

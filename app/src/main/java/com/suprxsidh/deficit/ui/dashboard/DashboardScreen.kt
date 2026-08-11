@@ -27,7 +27,7 @@ import com.suprxsidh.deficit.DeficitApp
 import java.time.LocalDate
 
 @Composable
-fun DashboardScreen(onQuickAdd: () -> Unit) {
+fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
     val app = LocalContext.current.applicationContext as DeficitApp
     val viewModel: DashboardViewModel = viewModel(factory = viewModelFactory {
         initializer {
@@ -70,6 +70,9 @@ fun DashboardScreen(onQuickAdd: () -> Unit) {
                     Text("Today's run", style = MaterialTheme.typography.titleMedium)
                     Text("${run.durationMin} min" + (run.distanceM?.let { " · %.1f km".format(it / 1000.0) } ?: ""))
                     Text("${run.kcalReal} kcal · credited: ${run.kcalCredited} kcal (50%)")
+                    TextButton(onClick = onViewRunHistory) {
+                        Text("View run history")
+                    }
                 }
             }
         }
