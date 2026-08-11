@@ -258,7 +258,7 @@ fun FoodLogScreen() {
         var editedKcalInput by remember(estimate) { mutableStateOf(estimate.totalKcal.toString()) }
 
         AlertDialog(
-            onDismissRequest = { viewModel.cancelAiReview() },
+            onDismissRequest = { viewModel.cancelAiReview(); pendingPhotoFile = null },
             title = { Text("Confirm meal (confidence: ${estimate.confidence})") },
             text = {
                 Column {
@@ -276,11 +276,14 @@ fun FoodLogScreen() {
             },
             confirmButton = {
                 TextButton(
-                    onClick = { editedKcalInput.toIntOrNull()?.let { kcal -> viewModel.confirmAiEstimate(editedName, kcal) } },
+                    onClick = {
+                        editedKcalInput.toIntOrNull()?.let { kcal -> viewModel.confirmAiEstimate(editedName, kcal) }
+                        pendingPhotoFile = null
+                    },
                     enabled = editedKcalInput.toIntOrNull() != null
                 ) { Text("Confirm & log") }
             },
-            dismissButton = { TextButton(onClick = { viewModel.cancelAiReview() }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { viewModel.cancelAiReview(); pendingPhotoFile = null }) { Text("Cancel") } }
         )
     }
 }
