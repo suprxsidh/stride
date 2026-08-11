@@ -1,5 +1,6 @@
 package com.suprxsidh.deficit.ui.dashboard
 
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,15 +8,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -27,13 +31,23 @@ fun DashboardScreen(onQuickAdd: () -> Unit) {
     val app = LocalContext.current.applicationContext as DeficitApp
     val viewModel: DashboardViewModel = viewModel(factory = viewModelFactory {
         initializer {
-            DashboardViewModel(app.container.foodRepository, app.container.userProfileRepository, app.container.weightRepository)
+            DashboardViewModel(
+                app.container.foodRepository,
+                app.container.userProfileRepository,
+                app.container.weightRepository,
+                app.container.healthConnectRepository,
+                app.container.healthConnectAvailability,
+                app.container::hasHealthConnectPermissions
+            )
         }
     })
 
     val profile by viewModel.profile.collectAsState()
     val total by viewModel.todayBufferedTotal.collectAsState()
     val series by viewModel.rollingAverageSeries.collectAsState()
+    val todaysRun by viewModel.todaysRun.collectAsState()
+    val hcStatus by viewModel.healthConnectStatus.collectAsState()
+    val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Today", style = MaterialTheme.typography.titleLarge)
@@ -49,6 +63,32 @@ fun DashboardScreen(onQuickAdd: () -> Unit) {
 
         Text("Weight (7-day average)", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
         WeightSparkline(points = series.takeLast(30))
+
+        todaysRun?.let { run ->
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Today's run", style = MaterialTheme.typography.titleMedium)
+                    Text("${run.durationMin} min" + (run.distanceM?.let { " · %.1f km".format(it / 1000.0) } ?: ""))
+                    Text("${run.kcalReal} kcal · credited: ${run.kcalCredited} kcal (50%)")
+                }
+            }
+        }
+
+        when (hcStatus) {
+            HealthConnectStatus.PERMISSIONS_NEEDED -> Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Health Connect permissions needed to sync runs and weight.")
+                    TextButton(onClick = {
+                        context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
+                    }) { Text("Open Health Connect settings") }
+                }
+            }
+            HealthConnectStatus.UNAVAILABLE -> Text(
+                "Health Connect isn't available on this device — install it from the Play Store to sync runs and weight.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            HealthConnectStatus.OK -> {}
+        }
 
         Button(onClick = onQuickAdd, modifier = Modifier.padding(top = 16.dp)) {
             Text("Log food")

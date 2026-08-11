@@ -1,13 +1,20 @@
 package com.suprxsidh.deficit.ui.dashboard
 
+import androidx.health.connect.client.HealthConnectClient
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.suprxsidh.deficit.data.calc.Sex
 import com.suprxsidh.deficit.data.db.DeficitDatabase
+import com.suprxsidh.deficit.data.db.dao.ExerciseSessionDao
+import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.deficit.data.db.entity.FoodEntryEntity
 import com.suprxsidh.deficit.data.repository.FoodRepository
+import com.suprxsidh.deficit.data.repository.HealthConnectRepository
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
 import com.suprxsidh.deficit.data.repository.WeightRepository
+import com.suprxsidh.deficit.health.HealthDataSource
+import com.suprxsidh.deficit.health.RemoteExerciseSession
+import com.suprxsidh.deficit.health.RemoteWeightRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -23,6 +30,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.Instant
+import java.time.LocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -31,6 +40,29 @@ class DashboardViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var db: DeficitDatabase
     private lateinit var viewModel: DashboardViewModel
+    private lateinit var healthDao: ExerciseSessionDao
+
+    // Never exercises sync (these tests only read observeExerciseSessions() off the Room DAO
+    // via HealthConnectRepository), so every method is an unreachable no-op.
+    private class NoOpHealthDataSource : HealthDataSource {
+        override suspend fun readExerciseSessions(since: Instant): List<RemoteExerciseSession> = emptyList()
+        override suspend fun readNewWeightRecords(since: Instant): List<RemoteWeightRecord> = emptyList()
+        override suspend fun writeWeightRecord(weightKg: Double, time: Instant): String = ""
+    }
+
+    private fun buildViewModel(
+        clock: () -> LocalDateTime = { LocalDateTime.of(2026, 8, 10, 12, 0) },
+        healthConnectAvailability: Int = HealthConnectClient.SDK_AVAILABLE,
+        hasPermissions: suspend () -> Boolean = { true }
+    ): DashboardViewModel = DashboardViewModel(
+        FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = clock),
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()),
+        WeightRepository(db.weighInDao()),
+        HealthConnectRepository(NoOpHealthDataSource(), db.exerciseSessionDao(), db.syncStateDao(), db.weighInDao(), clock),
+        healthConnectAvailability,
+        hasPermissions,
+        clock
+    )
 
     @Before
     fun setUp() {
@@ -39,11 +71,8 @@ class DashboardViewModelTest {
             .setQueryExecutor(java.util.concurrent.Executor { it.run() })
             .setTransactionExecutor(java.util.concurrent.Executor { it.run() })
             .allowMainThreadQueries().build()
-        viewModel = DashboardViewModel(
-            FoodRepository(db.foodEntryDao(), db.customFoodDao()) { java.time.LocalDateTime.of(2026, 8, 10, 12, 0) },
-            UserProfileRepository(db.userProfileDao(), db.weighInDao()),
-            WeightRepository(db.weighInDao())
-        )
+        healthDao = db.exerciseSessionDao()
+        viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 12, 0) })
     }
 
     @After
@@ -85,5 +114,70 @@ class DashboardViewModelTest {
         backgroundScope.launch { viewModel.profile.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(1645, viewModel.profile.value?.softBudgetKcal)
+    }
+
+    @Test
+    fun `todaysRun exposes the latest session for today's date`() = runTest(testDispatcher) {
+        val today = "2026-08-11"
+        val session = ExerciseSessionEntity(
+            id = 1, hcRecordId = "hc-1", date = today, exerciseType = "RUNNING",
+            startTimeEpochMs = 1L, durationMin = 30, distanceM = 5000.0,
+            avgPaceSecPerKm = 360.0, avgHr = 150, maxHr = 170, kcalReal = 350, kcalCredited = 175
+        )
+        healthDao.insert(session)
+        val viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 11, 9, 0) })
+        backgroundScope.launch { viewModel.todaysRun.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("hc-1", viewModel.todaysRun.value?.hcRecordId)
+        assertEquals(175, viewModel.todaysRun.value?.kcalCredited)
+    }
+
+    @Test
+    fun `todaysRun is null when no session logged today`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 11, 9, 0) })
+        backgroundScope.launch { viewModel.todaysRun.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.todaysRun.value)
+    }
+
+    @Test
+    fun `healthConnectStatus is UNAVAILABLE when the SDK isn't available`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            healthConnectAvailability = 2, // HealthConnectClient.SDK_UNAVAILABLE
+            hasPermissions = { true }
+        )
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(HealthConnectStatus.UNAVAILABLE, viewModel.healthConnectStatus.value)
+    }
+
+    @Test
+    fun `healthConnectStatus is PERMISSIONS_NEEDED when available but not granted`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            healthConnectAvailability = HealthConnectClient.SDK_AVAILABLE,
+            hasPermissions = { false }
+        )
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(HealthConnectStatus.PERMISSIONS_NEEDED, viewModel.healthConnectStatus.value)
+    }
+
+    @Test
+    fun `healthConnectStatus is OK when available and granted`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            healthConnectAvailability = HealthConnectClient.SDK_AVAILABLE,
+            hasPermissions = { true }
+        )
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
     }
 }
