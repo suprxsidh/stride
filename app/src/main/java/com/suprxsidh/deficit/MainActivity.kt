@@ -86,7 +86,11 @@ class MainActivity : ComponentActivity() {
                                     TopAppBar(
                                         title = { Text("Deficit") },
                                         actions = {
-                                            IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+                                            IconButton(onClick = {
+                                                navController.navigate(Routes.SETTINGS) {
+                                                    launchSingleTop = true
+                                                }
+                                            }) {
                                                 Icon(Icons.Default.Settings, contentDescription = "Settings")
                                             }
                                         }
