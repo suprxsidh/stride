@@ -53,4 +53,19 @@ class WeighInDaoTest {
         val all = dao.observeAll().first()
         assertEquals(listOf("2026-08-09", "2026-08-11"), all.map { it.date })
     }
+
+    @Test
+    fun `getUnsyncedToHc returns only rows with syncedToHc false`() = runTest {
+        dao.upsert(WeighInEntity(date = "2026-08-09", weightKg = 80.0, syncedToHc = true))
+        dao.upsert(WeighInEntity(date = "2026-08-10", weightKg = 79.8, syncedToHc = false))
+        val unsynced = dao.getUnsyncedToHc()
+        assertEquals(1, unsynced.size)
+        assertEquals("2026-08-10", unsynced.first().date)
+    }
+
+    @Test
+    fun `getByHcRecordId finds an imported weigh-in`() = runTest {
+        dao.upsert(WeighInEntity(date = "2026-08-10", weightKg = 79.8, syncedToHc = true, hcRecordId = "hc-weight-1"))
+        assertEquals(79.8, dao.getByHcRecordId("hc-weight-1")?.weightKg)
+    }
 }

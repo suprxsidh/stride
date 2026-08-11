@@ -17,4 +17,10 @@ interface WeighInDao {
 
     @Query("SELECT * FROM weigh_in WHERE date = :date LIMIT 1")
     suspend fun getForDate(date: String): WeighInEntity?
+
+    @Query("SELECT * FROM weigh_in WHERE hcRecordId = :hcRecordId LIMIT 1")
+    suspend fun getByHcRecordId(hcRecordId: String): WeighInEntity?
+
+    @Query("SELECT * FROM weigh_in WHERE syncedToHc = 0")
+    suspend fun getUnsyncedToHc(): List<WeighInEntity>
 }

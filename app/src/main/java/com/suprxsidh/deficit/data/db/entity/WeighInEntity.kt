@@ -8,5 +8,6 @@ data class WeighInEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: String,
     val weightKg: Double,
-    val syncedToHc: Boolean = false
+    val syncedToHc: Boolean = false,
+    val hcRecordId: String? = null
 )
