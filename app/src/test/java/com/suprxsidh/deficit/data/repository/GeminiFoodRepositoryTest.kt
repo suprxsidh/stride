@@ -10,6 +10,8 @@ import com.suprxsidh.deficit.ai.gemini.GeminiGenerateContentRequest
 import com.suprxsidh.deficit.ai.gemini.GeminiGenerateContentResponse
 import com.suprxsidh.deficit.ai.gemini.GeminiPart
 import com.suprxsidh.deficit.data.db.DeficitDatabase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -112,6 +114,26 @@ class GeminiFoodRepositoryTest {
         val succeeded = buildRepo(succeed = true).retryPendingDrafts()
 
         assertEquals(1, succeeded)
+        assertEquals(0, db.pendingDraftDao().getAll().size)
+        assertEquals(1, foodRepository.observeTodayEntries().first().size)
+    }
+
+    @Test
+    fun `two concurrent retries of the same draft only log the meal once`() = runTest {
+        buildRepo(succeed = false).estimateMeal("2 rotis", null)
+        assertEquals(1, db.pendingDraftDao().getAll().size)
+
+        // App startup and the "Retry now" button both call retryPendingDrafts() on the single
+        // AppContainer-scoped repository. Without an in-flight guard each iterated its own
+        // getAll() snapshot and the same draft got confirmed twice — one meal, two food entries.
+        val repo = buildRepo(succeed = true)
+        val totals = coroutineScope {
+            val first = async { repo.retryPendingDrafts() }
+            val second = async { repo.retryPendingDrafts() }
+            first.await() + second.await()
+        }
+
+        assertEquals(1, totals)
         assertEquals(0, db.pendingDraftDao().getAll().size)
         assertEquals(1, foodRepository.observeTodayEntries().first().size)
     }

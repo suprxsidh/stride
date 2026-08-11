@@ -5,7 +5,12 @@ import com.suprxsidh.deficit.ai.gemini.GeminiFoodEstimator
 import com.suprxsidh.deficit.data.db.dao.PendingDraftDao
 import com.suprxsidh.deficit.data.db.entity.FoodEntryEntity
 import com.suprxsidh.deficit.data.db.entity.PendingDraftEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Base64
 
@@ -21,7 +26,18 @@ class GeminiFoodRepository(
     private val foodRepository: FoodRepository,
     private val pendingDraftDao: PendingDraftDao
 ) {
+    /** Serializes [retryPendingDrafts] so two concurrent callers can't confirm the same draft twice. */
+    private val retryMutex = Mutex()
+
     suspend fun isAvailable(): Boolean = !settingsRepository.getGeminiApiKey().isNullOrBlank()
+
+    /**
+     * Reactive counterpart to [isAvailable] — emits again when the key is saved or cleared in
+     * Settings, so the UI's AI section appears/disappears deterministically instead of depending on
+     * when a one-shot flow happened to be collected.
+     */
+    fun observeAvailability(): Flow<Boolean> =
+        settingsRepository.observeGeminiApiKey().map { !it.isNullOrBlank() }
 
     fun observePendingDrafts(): Flow<List<PendingDraftEntity>> = pendingDraftDao.observeAll()
 
@@ -57,12 +73,19 @@ class GeminiFoodRepository(
         return foodRepository.logGeminiEstimate(name, kcal)
     }
 
-    /** No user is present for a background retry, so a successful retry auto-saves unedited. */
-    suspend fun retryPendingDrafts(): Int {
-        val apiKey = settingsRepository.getGeminiApiKey() ?: return 0
+    /**
+     * No user is present for a background retry, so a successful retry auto-saves unedited.
+     *
+     * Guarded by [retryMutex]: app startup and the "Retry now" button both call this independently,
+     * and each used to iterate its own [PendingDraftDao.getAll] snapshot — the same draft visible in
+     * both snapshots got confirmed twice, logging one meal as two food entries. A second concurrent
+     * caller now waits, then re-reads the (already drained) draft list and does nothing extra.
+     */
+    suspend fun retryPendingDrafts(): Int = retryMutex.withLock {
+        val apiKey = settingsRepository.getGeminiApiKey() ?: return@withLock 0
         var succeeded = 0
         for (draft in pendingDraftDao.getAll()) {
-            val photoBase64 = draft.photoPath?.let { path -> File(path).takeIf { it.exists() }?.let(::encodeBase64) }
+            val photoBase64 = draft.photoPath?.let { path -> File(path).takeIf { it.exists() }?.let { encodeBase64(it) } }
             try {
                 val estimate = estimator.estimate(apiKey, draft.payload.ifBlank { null }, photoBase64)
                 confirmEstimate(estimate)
@@ -72,7 +95,7 @@ class GeminiFoodRepository(
                 pendingDraftDao.update(draft.copy(retryCount = draft.retryCount + 1))
             }
         }
-        return succeeded
+        succeeded
     }
 
     suspend fun discardDraftAsQuickAdd(draftId: Long, kcal: Int) {
@@ -81,5 +104,12 @@ class GeminiFoodRepository(
         pendingDraftDao.delete(draft)
     }
 
-    private fun encodeBase64(file: File): String = Base64.getEncoder().encodeToString(file.readBytes())
+    /**
+     * Reading a multi-megabyte photo off disk and base64-encoding it takes hundreds of milliseconds
+     * to seconds. Callers reach this from `viewModelScope`/`lifecycleScope`, i.e. the main
+     * dispatcher, so it has to be moved off it explicitly or it janks/ANRs the UI.
+     */
+    private suspend fun encodeBase64(file: File): String = withContext(Dispatchers.IO) {
+        Base64.getEncoder().encodeToString(file.readBytes())
+    }
 }

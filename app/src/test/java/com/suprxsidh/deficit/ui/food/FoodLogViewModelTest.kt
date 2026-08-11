@@ -180,6 +180,25 @@ class FoodLogViewModelTest {
     }
 
     @Test
+    fun `aiEstimateAvailable updates when the key changes without rebuilding the view model`() = runTest {
+        // Was a one-shot flow, so whether the AI section appeared depended on WhileSubscribed timing
+        // rather than on the stored key. Saving or clearing the key in Settings must move this.
+        settingsRepository.setGeminiApiKey(null)
+        val viewModel = buildViewModel()
+        backgroundScope.launch { viewModel.aiEstimateAvailable.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertFalse(viewModel.aiEstimateAvailable.value)
+
+        settingsRepository.setGeminiApiKey("a-key")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.aiEstimateAvailable.value)
+
+        settingsRepository.setGeminiApiKey(null)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertFalse(viewModel.aiEstimateAvailable.value)
+    }
+
+    @Test
     fun `submitAiEstimate populates reviewEstimate without logging anything yet`() = runTest {
         settingsRepository.setGeminiApiKey("a-key")
         val viewModel = buildViewModel(geminiApi = FakeSucceedingGeminiApi())

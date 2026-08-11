@@ -16,7 +16,6 @@ import com.suprxsidh.deficit.data.repository.GeminiFoodRepository
 import com.suprxsidh.deficit.food.off.OpenFoodFactsRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -56,7 +55,9 @@ class FoodLogViewModel(
     var reviewEstimate by mutableStateOf<GeminiFoodEstimate?>(null)
         private set
 
-    val aiEstimateAvailable: StateFlow<Boolean> = flow { emit(geminiFoodRepository.isAvailable()) }
+    // Observes the stored key rather than sampling it once, so saving or clearing it in Settings
+    // shows/hides the AI section deterministically instead of depending on collection timing.
+    val aiEstimateAvailable: StateFlow<Boolean> = geminiFoodRepository.observeAvailability()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val pendingDrafts: StateFlow<List<PendingDraftEntity>> = geminiFoodRepository.observePendingDrafts()
