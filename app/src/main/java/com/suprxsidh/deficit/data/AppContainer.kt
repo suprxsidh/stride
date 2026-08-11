@@ -2,8 +2,11 @@ package com.suprxsidh.deficit.data
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import com.suprxsidh.deficit.ai.gemini.GeminiFoodEstimator
+import com.suprxsidh.deficit.ai.gemini.GeminiServiceFactory
 import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.repository.FoodRepository
+import com.suprxsidh.deficit.data.repository.GeminiFoodRepository
 import com.suprxsidh.deficit.data.repository.HealthConnectRepository
 import com.suprxsidh.deficit.data.repository.SettingsRepository
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
@@ -22,6 +25,12 @@ class AppContainer(private val context: Context) {
     val openFoodFactsRepository = OpenFoodFactsRepository(
         OpenFoodFactsServiceFactory.create(),
         database.offCacheDao()
+    )
+    val geminiFoodRepository = GeminiFoodRepository(
+        estimator = GeminiFoodEstimator(GeminiServiceFactory.create()),
+        settingsRepository = settingsRepository,
+        foodRepository = foodRepository,
+        pendingDraftDao = database.pendingDraftDao()
     )
 
     val healthConnectAvailability: Int = HealthConnectManager.availability(context)

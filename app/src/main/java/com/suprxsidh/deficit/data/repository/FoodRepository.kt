@@ -55,6 +55,9 @@ class FoodRepository(
     suspend fun logOffProduct(name: String, rawKcal: Int, barcode: String): FoodEntryEntity =
         log(name, rawKcal, "OFF", barcode)
 
+    suspend fun logGeminiEstimate(name: String, rawKcal: Int): FoodEntryEntity =
+        log(name, rawKcal, "GEMINI")
+
     fun observeTodayEntries(): Flow<List<FoodEntryEntity>> =
         todayKeyFlow().flatMapLatest { foodEntryDao.observeForDate(it) }
 

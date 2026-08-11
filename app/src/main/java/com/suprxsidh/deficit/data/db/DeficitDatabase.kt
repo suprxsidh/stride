@@ -9,6 +9,7 @@ import com.suprxsidh.deficit.data.db.dao.CustomFoodDao
 import com.suprxsidh.deficit.data.db.dao.ExerciseSessionDao
 import com.suprxsidh.deficit.data.db.dao.FoodEntryDao
 import com.suprxsidh.deficit.data.db.dao.OffCacheDao
+import com.suprxsidh.deficit.data.db.dao.PendingDraftDao
 import com.suprxsidh.deficit.data.db.dao.SyncStateDao
 import com.suprxsidh.deficit.data.db.dao.UserProfileDao
 import com.suprxsidh.deficit.data.db.dao.WeighInDao
@@ -17,6 +18,7 @@ import com.suprxsidh.deficit.data.db.entity.CustomFoodEntity
 import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.deficit.data.db.entity.FoodEntryEntity
 import com.suprxsidh.deficit.data.db.entity.OffCacheEntity
+import com.suprxsidh.deficit.data.db.entity.PendingDraftEntity
 import com.suprxsidh.deficit.data.db.entity.SyncStateEntity
 import com.suprxsidh.deficit.data.db.entity.UserProfileEntity
 import com.suprxsidh.deficit.data.db.entity.WeighInEntity
@@ -30,7 +32,8 @@ import com.suprxsidh.deficit.data.db.entity.WeighInEntity
         OffCacheEntity::class,
         ExerciseSessionEntity::class,
         SyncStateEntity::class,
-        AppSettingsEntity::class
+        AppSettingsEntity::class,
+        PendingDraftEntity::class
     ],
     version = 3,
     exportSchema = false
@@ -44,6 +47,7 @@ abstract class DeficitDatabase : RoomDatabase() {
     abstract fun exerciseSessionDao(): ExerciseSessionDao
     abstract fun syncStateDao(): SyncStateDao
     abstract fun appSettingsDao(): AppSettingsDao
+    abstract fun pendingDraftDao(): PendingDraftDao
 
     companion object {
         @Volatile private var INSTANCE: DeficitDatabase? = null
