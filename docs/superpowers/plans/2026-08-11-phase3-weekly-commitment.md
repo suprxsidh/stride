@@ -1168,7 +1168,8 @@ class AdaptiveBudgetRepositoryTest {
 
         repo.clearManualOverride()
         assertNull(settingsRepository.getManualBudgetOverrideKcal())
-        assertEquals(1850, db.userProfileDao().get()?.softBudgetKcal) // recomputed from the still-78kg rolling average
+        // Recomputed from the still-78kg rolling average: bmr=1752.5, tdee=2103.0, floor(2103-500)=1603.
+        assertEquals(1603, db.userProfileDao().get()?.softBudgetKcal)
     }
 }
 ```
@@ -1251,7 +1252,7 @@ git commit -m "Task 6: adaptive budget repository with manual-override precedenc
 - Consumed by: `DashboardViewModel` (Task 10) calls `generateForCompletedWeekIfDue()` once on load (mirrors how `MainActivity`/`DashboardViewModel` already trigger Health Connect sync opportunistically on open) and `unseenReview()`/`markReviewSeen()` for the first-open card; a future history screen would call `observeHistory()` (out of scope to build in this phase, but the method exists and is tested since `generateForCompletedWeekIfDue` writes into the same table it reads).
 
 **Judgment calls:**
-1. **Day-1 guard.** Without a check, opening the app for the very first time would generate a review for the week *before* the user ever installed it — always a "broken" week (0 runs, 0 days logged) that has nothing to do with real usage. `generateForCompletedWeekIfDue` fetches the profile first and skips entirely (returns `null`, writes no row) if the completed week ended before the profile's `createdAt` date.
+1. **Day-1 guard.** Without a check, opening the app for the very first time would generate a review for the week *before* the user ever installed it — always a "broken" week (0 runs, 0 days logged) that has nothing to do with real usage. `generateForCompletedWeekIfDue` fetches the profile first and skips entirely (returns `null`, writes no row) if the completed week ended on or before the profile's `createdAt` date — inclusive, so onboarding on the week's last day still counts as predating real usage in it.
 2. **Rolling-average weight change for the week** = the 7-day rolling average as of that week's Sunday, minus the rolling average as of the day before that week's Monday (the last known values on/before each boundary, since weigh-ins rarely land exactly on those two calendar dates). This captures how much the trend moved *during* that specific week, distinct from `WeightRepository.observeTotalChangeSinceStart()`'s all-time figure.
 3. **Average daily deficit** is grouped by day, using `profile.softBudgetKcal - dayTotal`, averaged only across days with at least one logged entry — consistent with the Global Constraints note (matches the existing dashboard bar's definition, no exercise-credit add-back).
 
@@ -1462,7 +1463,7 @@ class WeeklyReviewRepository(
         val createdAtDate = DayBoundary.logicalDate(
             LocalDateTime.ofInstant(Instant.ofEpochMilli(profile.createdAt), ZoneId.systemDefault())
         )
-        if (weekEnd.isBefore(createdAtDate)) return null
+        if (!weekEnd.isAfter(createdAtDate)) return null // inclusive: onboarding on the week's last day still counts as "predates real usage"
 
         val existing = weeklyReviewDao.getByWeekStart(weekStart.toString())
         if (existing != null) return existing
