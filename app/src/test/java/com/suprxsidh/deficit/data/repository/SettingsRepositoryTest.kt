@@ -3,6 +3,7 @@ package com.suprxsidh.deficit.data.repository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.suprxsidh.deficit.data.db.DeficitDatabase
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -46,5 +47,39 @@ class SettingsRepositoryTest {
         repository.setGeminiApiKey("test-key-123")
         repository.setGeminiApiKey(null)
         assertNull(repository.getGeminiApiKey())
+    }
+
+    @Test
+    fun `weekly run target and floor default to 4 and 3, and are settable`() = runTest {
+        assertEquals(4, repository.observeWeeklyRunTarget().first())
+        assertEquals(3, repository.observeWeeklyRunFloor().first())
+
+        repository.setWeeklyRunTarget(5)
+        repository.setWeeklyRunFloor(4)
+
+        assertEquals(5, repository.observeWeeklyRunTarget().first())
+        assertEquals(4, repository.observeWeeklyRunFloor().first())
+    }
+
+    @Test
+    fun `manual budget override is null by default and round-trips through set and clear`() = runTest {
+        assertEquals(null, repository.getManualBudgetOverrideKcal())
+
+        repository.setManualBudgetOverrideKcal(1900)
+        assertEquals(1900, repository.getManualBudgetOverrideKcal())
+
+        repository.setManualBudgetOverrideKcal(null)
+        assertEquals(null, repository.getManualBudgetOverrideKcal())
+    }
+
+    @Test
+    fun `last-seen review watermark and last motivation category round-trip`() = runTest {
+        assertEquals(null, repository.getLastReviewSeenWeekStart())
+        repository.setLastReviewSeenWeekStart("2024-01-08")
+        assertEquals("2024-01-08", repository.getLastReviewSeenWeekStart())
+
+        assertEquals(null, repository.getLastMotivationCategory())
+        repository.setLastMotivationCategory("WEEKLY_PROGRESS")
+        assertEquals("WEEKLY_PROGRESS", repository.getLastMotivationCategory())
     }
 }

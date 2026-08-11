@@ -13,6 +13,7 @@ import com.suprxsidh.deficit.data.db.dao.PendingDraftDao
 import com.suprxsidh.deficit.data.db.dao.SyncStateDao
 import com.suprxsidh.deficit.data.db.dao.UserProfileDao
 import com.suprxsidh.deficit.data.db.dao.WeighInDao
+import com.suprxsidh.deficit.data.db.dao.WeeklyReviewDao
 import com.suprxsidh.deficit.data.db.entity.AppSettingsEntity
 import com.suprxsidh.deficit.data.db.entity.CustomFoodEntity
 import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
@@ -22,6 +23,7 @@ import com.suprxsidh.deficit.data.db.entity.PendingDraftEntity
 import com.suprxsidh.deficit.data.db.entity.SyncStateEntity
 import com.suprxsidh.deficit.data.db.entity.UserProfileEntity
 import com.suprxsidh.deficit.data.db.entity.WeighInEntity
+import com.suprxsidh.deficit.data.db.entity.WeeklyReviewEntity
 
 @Database(
     entities = [
@@ -33,10 +35,11 @@ import com.suprxsidh.deficit.data.db.entity.WeighInEntity
         ExerciseSessionEntity::class,
         SyncStateEntity::class,
         AppSettingsEntity::class,
-        PendingDraftEntity::class
+        PendingDraftEntity::class,
+        WeeklyReviewEntity::class
     ],
-    // v4: SyncStateEntity gained lastWeightSyncEpochMs (independent weigh-in watermark).
-    version = 4,
+    // v5: WeeklyReviewEntity added; AppSettingsEntity gained weekly commitment + review fields.
+    version = 5,
     exportSchema = false
 )
 abstract class DeficitDatabase : RoomDatabase() {
@@ -49,6 +52,7 @@ abstract class DeficitDatabase : RoomDatabase() {
     abstract fun syncStateDao(): SyncStateDao
     abstract fun appSettingsDao(): AppSettingsDao
     abstract fun pendingDraftDao(): PendingDraftDao
+    abstract fun weeklyReviewDao(): WeeklyReviewDao
 
     companion object {
         @Volatile private var INSTANCE: DeficitDatabase? = null
