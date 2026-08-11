@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.suprxsidh.deficit.data.db.dao.AppSettingsDao
 import com.suprxsidh.deficit.data.db.dao.CustomFoodDao
 import com.suprxsidh.deficit.data.db.dao.ExerciseSessionDao
 import com.suprxsidh.deficit.data.db.dao.FoodEntryDao
@@ -11,6 +12,7 @@ import com.suprxsidh.deficit.data.db.dao.OffCacheDao
 import com.suprxsidh.deficit.data.db.dao.SyncStateDao
 import com.suprxsidh.deficit.data.db.dao.UserProfileDao
 import com.suprxsidh.deficit.data.db.dao.WeighInDao
+import com.suprxsidh.deficit.data.db.entity.AppSettingsEntity
 import com.suprxsidh.deficit.data.db.entity.CustomFoodEntity
 import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.deficit.data.db.entity.FoodEntryEntity
@@ -27,7 +29,8 @@ import com.suprxsidh.deficit.data.db.entity.WeighInEntity
         WeighInEntity::class,
         OffCacheEntity::class,
         ExerciseSessionEntity::class,
-        SyncStateEntity::class
+        SyncStateEntity::class,
+        AppSettingsEntity::class
     ],
     version = 3,
     exportSchema = false
@@ -40,6 +43,7 @@ abstract class DeficitDatabase : RoomDatabase() {
     abstract fun offCacheDao(): OffCacheDao
     abstract fun exerciseSessionDao(): ExerciseSessionDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun appSettingsDao(): AppSettingsDao
 
     companion object {
         @Volatile private var INSTANCE: DeficitDatabase? = null

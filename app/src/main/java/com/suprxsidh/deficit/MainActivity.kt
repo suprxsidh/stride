@@ -11,12 +11,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +47,7 @@ private val BOTTOM_DESTINATIONS = listOf(
 )
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as DeficitApp
@@ -76,6 +81,18 @@ class MainActivity : ComponentActivity() {
                         val showBottomBar = currentRoute != null && currentRoute != Routes.ONBOARDING
 
                         Scaffold(
+                            topBar = {
+                                if (showBottomBar) {
+                                    TopAppBar(
+                                        title = { Text("Deficit") },
+                                        actions = {
+                                            IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+                                                Icon(Icons.Default.Settings, contentDescription = "Settings")
+                                            }
+                                        }
+                                    )
+                                }
+                            },
                             bottomBar = {
                                 if (showBottomBar) {
                                     NavigationBar {

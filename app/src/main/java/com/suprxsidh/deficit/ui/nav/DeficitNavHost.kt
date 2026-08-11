@@ -9,6 +9,7 @@ import com.suprxsidh.deficit.ui.dashboard.DashboardScreen
 import com.suprxsidh.deficit.ui.food.FoodLogScreen
 import com.suprxsidh.deficit.ui.health.RunDetailScreen
 import com.suprxsidh.deficit.ui.onboarding.OnboardingScreen
+import com.suprxsidh.deficit.ui.settings.SettingsScreen
 import com.suprxsidh.deficit.ui.weight.WeightScreen
 
 @Composable
@@ -30,5 +31,6 @@ fun DeficitNavHost(navController: NavHostController, startDestination: String, m
         composable(Routes.FOOD_LOG) { FoodLogScreen() }
         composable(Routes.WEIGHT) { WeightScreen() }
         composable(Routes.RUN_DETAIL) { RunDetailScreen() }
+        composable(Routes.SETTINGS) { SettingsScreen() }
     }
 }

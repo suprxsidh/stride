@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.repository.FoodRepository
 import com.suprxsidh.deficit.data.repository.HealthConnectRepository
+import com.suprxsidh.deficit.data.repository.SettingsRepository
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
 import com.suprxsidh.deficit.data.repository.WeightRepository
 import com.suprxsidh.deficit.food.off.OpenFoodFactsRepository
@@ -17,6 +18,7 @@ class AppContainer(private val context: Context) {
     val userProfileRepository = UserProfileRepository(database.userProfileDao(), database.weighInDao())
     val foodRepository = FoodRepository(database.foodEntryDao(), database.customFoodDao())
     val weightRepository = WeightRepository(database.weighInDao())
+    val settingsRepository = SettingsRepository(database.appSettingsDao())
     val openFoodFactsRepository = OpenFoodFactsRepository(
         OpenFoodFactsServiceFactory.create(),
         database.offCacheDao()
