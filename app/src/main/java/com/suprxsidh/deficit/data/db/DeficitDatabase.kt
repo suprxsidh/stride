@@ -35,7 +35,8 @@ import com.suprxsidh.deficit.data.db.entity.WeighInEntity
         AppSettingsEntity::class,
         PendingDraftEntity::class
     ],
-    version = 3,
+    // v4: SyncStateEntity gained lastWeightSyncEpochMs (independent weigh-in watermark).
+    version = 4,
     exportSchema = false
 )
 abstract class DeficitDatabase : RoomDatabase() {

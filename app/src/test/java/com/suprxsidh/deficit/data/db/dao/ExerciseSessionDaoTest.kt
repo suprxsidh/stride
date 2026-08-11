@@ -59,6 +59,38 @@ class ExerciseSessionDaoTest {
         assertEquals("hc-1", all[1].hcRecordId)
     }
 
+    @Test
+    fun `upsertByHcRecordId inserts when the record is new`() = runTest {
+        dao.upsertByHcRecordId(session(hcRecordId = "hc-1"))
+
+        assertEquals(1, dao.observeAll().first().size)
+        assertEquals("hc-1", dao.getByHcRecordId("hc-1")?.hcRecordId)
+    }
+
+    @Test
+    fun `upsertByHcRecordId updates in place instead of hitting the unique index`() = runTest {
+        // hcRecordId carries a unique index and insert() uses the default ABORT strategy, so a
+        // second sync (periodic and one-off work are separate chains and can overlap) used to throw
+        // SQLiteConstraintException once both saw the same "new" session.
+        dao.upsertByHcRecordId(session(hcRecordId = "hc-1"))
+        dao.upsertByHcRecordId(session(hcRecordId = "hc-1").copy(kcalReal = 2000, durationMin = 40))
+
+        val all = dao.observeAll().first()
+        assertEquals(1, all.size)
+        assertEquals(2000, all[0].kcalReal)
+        assertEquals(40, all[0].durationMin)
+    }
+
+    @Test
+    fun `upsertByHcRecordId preserves the existing row id when updating`() = runTest {
+        dao.upsertByHcRecordId(session(hcRecordId = "hc-1"))
+        val originalId = dao.getByHcRecordId("hc-1")!!.id
+
+        dao.upsertByHcRecordId(session(hcRecordId = "hc-1").copy(kcalReal = 999))
+
+        assertEquals(originalId, dao.getByHcRecordId("hc-1")!!.id)
+    }
+
     private fun session(hcRecordId: String, startTimeEpochMs: Long = 1_700_000_000_000L) = ExerciseSessionEntity(
         hcRecordId = hcRecordId,
         date = "2026-08-11",
