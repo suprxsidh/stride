@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,16 +33,24 @@ import java.time.LocalDate
 fun WeightScreen() {
     val app = LocalContext.current.applicationContext as DeficitApp
     val viewModel: WeightViewModel = viewModel(factory = viewModelFactory {
-        initializer { WeightViewModel(app.container.weightRepository) }
+        initializer { WeightViewModel(app.container.weightRepository, app.container.healthConnectRepository) }
     })
 
     val raw by viewModel.rawSeries.collectAsState()
     val rolling by viewModel.rollingSeries.collectAsState()
     val totalChange by viewModel.totalChange.collectAsState()
     val trend by viewModel.trend.collectAsState()
+    val lastSyncResult by viewModel.lastSyncResult.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Weight", style = MaterialTheme.typography.titleLarge)
+
+        TextButton(onClick = { viewModel.syncWithHealthConnect() }) {
+            Text("Sync with Health Connect")
+        }
+        lastSyncResult?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
 
         Row(modifier = Modifier.padding(vertical = 8.dp)) {
             OutlinedTextField(

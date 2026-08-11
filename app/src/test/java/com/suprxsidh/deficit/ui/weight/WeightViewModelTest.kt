@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.db.entity.WeighInEntity
+import com.suprxsidh.deficit.data.repository.WeighInSyncSource
 import com.suprxsidh.deficit.data.repository.WeightRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,6 +27,7 @@ import org.robolectric.annotation.Config
 class WeightViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var db: DeficitDatabase
+    private lateinit var repository: WeightRepository
     private lateinit var viewModel: WeightViewModel
 
     @Before
@@ -35,7 +37,8 @@ class WeightViewModelTest {
             .setQueryExecutor(java.util.concurrent.Executor { it.run() })
             .setTransactionExecutor(java.util.concurrent.Executor { it.run() })
             .allowMainThreadQueries().build()
-        viewModel = WeightViewModel(WeightRepository(db.weighInDao()))
+        repository = WeightRepository(db.weighInDao())
+        viewModel = WeightViewModel(repository)
     }
 
     @After
@@ -81,4 +84,20 @@ class WeightViewModelTest {
 
         assertEquals(-4.0, viewModel.totalChange.value!!, 0.001)
     }
+
+    @Test
+    fun `syncWithHealthConnect reports how many entries were synced`() = runTest(testDispatcher) {
+        val viewModel = WeightViewModel(
+            weightRepository = repository,
+            healthConnectRepository = FakeHealthConnectRepositoryReturning(2)
+        )
+        viewModel.syncWithHealthConnect()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Synced 2 entries with Health Connect", viewModel.lastSyncResult.value)
+    }
+}
+
+private class FakeHealthConnectRepositoryReturning(private val count: Int) : WeighInSyncSource {
+    override suspend fun syncWeighIns(): Int = count
 }

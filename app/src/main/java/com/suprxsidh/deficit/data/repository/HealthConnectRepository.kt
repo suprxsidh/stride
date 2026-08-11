@@ -16,13 +16,17 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+interface WeighInSyncSource {
+    suspend fun syncWeighIns(): Int
+}
+
 class HealthConnectRepository(
     private val dataSource: HealthDataSource,
     private val exerciseSessionDao: ExerciseSessionDao,
     private val syncStateDao: SyncStateDao,
     private val weighInDao: WeighInDao,
     private val clock: () -> LocalDateTime = { LocalDateTime.now() }
-) {
+) : WeighInSyncSource {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     fun observeExerciseSessions(): Flow<List<ExerciseSessionEntity>> = exerciseSessionDao.observeAll()
@@ -72,7 +76,7 @@ class HealthConnectRepository(
         return count
     }
 
-    suspend fun syncWeighIns(): Int {
+    override suspend fun syncWeighIns(): Int {
         var count = 0
         for (unsynced in weighInDao.getUnsyncedToHc()) {
             val time = LocalDateTime.parse(unsynced.date + "T07:00:00").atZone(ZoneId.systemDefault()).toInstant()
