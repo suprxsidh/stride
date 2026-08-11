@@ -45,8 +45,12 @@ fun WeightScreen() {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Weight", style = MaterialTheme.typography.titleLarge)
 
-        TextButton(onClick = { viewModel.syncWithHealthConnect() }) {
-            Text("Sync with Health Connect")
+        if (viewModel.healthConnectAvailable) {
+            TextButton(onClick = { viewModel.syncWithHealthConnect() }) {
+                Text("Sync with Health Connect")
+            }
+        } else {
+            Text("Health Connect isn't available on this device", style = MaterialTheme.typography.bodySmall)
         }
         lastSyncResult?.let {
             Text(it, style = MaterialTheme.typography.bodySmall)

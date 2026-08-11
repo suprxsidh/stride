@@ -1,5 +1,6 @@
 package com.suprxsidh.deficit.ui.weight
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -43,11 +44,37 @@ class WeightViewModel(
         }
     }
 
+    /**
+     * False when Health Connect isn't installed on this device, in which case there is no sync
+     * source at all and the UI should say so rather than offer a button that does nothing.
+     */
+    val healthConnectAvailable: Boolean = healthConnectRepository != null
+
     fun syncWithHealthConnect() {
-        val source = healthConnectRepository ?: return
-        viewModelScope.launch {
-            val count = source.syncWeighIns()
-            _lastSyncResult.value = "Synced $count entries with Health Connect"
+        val source = healthConnectRepository
+        if (source == null) {
+            _lastSyncResult.value = "Health Connect isn't available on this device"
+            return
         }
+        viewModelScope.launch {
+            // The repository exists whenever Health Connect is *installed*, which says nothing about
+            // whether permissions were granted — onboarding lets the user skip the grant. Reading or
+            // writing without them throws SecurityException, which would otherwise escape
+            // viewModelScope and crash the app.
+            _lastSyncResult.value = try {
+                val count = source.syncWeighIns()
+                "Synced $count entries with Health Connect"
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Health Connect sync denied", e)
+                "Health Connect permissions needed — grant them in Settings"
+            } catch (e: Exception) {
+                Log.w(TAG, "Health Connect sync failed", e)
+                "Couldn't sync with Health Connect — try again later"
+            }
+        }
+    }
+
+    private companion object {
+        const val TAG = "WeightViewModel"
     }
 }

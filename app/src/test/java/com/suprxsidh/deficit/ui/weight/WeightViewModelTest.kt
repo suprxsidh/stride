@@ -15,6 +15,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -96,8 +98,55 @@ class WeightViewModelTest {
 
         assertEquals("Synced 2 entries with Health Connect", viewModel.lastSyncResult.value)
     }
+
+    @Test
+    fun `syncWithHealthConnect reports missing permissions instead of crashing`() = runTest(testDispatcher) {
+        // The repository is non-null whenever Health Connect is merely *installed*; onboarding lets
+        // the user skip the permission grant, and reading without it throws SecurityException. That
+        // used to escape viewModelScope uncaught and take the app down.
+        val viewModel = WeightViewModel(
+            weightRepository = repository,
+            healthConnectRepository = FakeHealthConnectRepositoryThrowing(SecurityException("not granted"))
+        )
+        viewModel.syncWithHealthConnect()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Health Connect permissions needed — grant them in Settings", viewModel.lastSyncResult.value)
+    }
+
+    @Test
+    fun `syncWithHealthConnect reports a generic failure for any other error`() = runTest(testDispatcher) {
+        val viewModel = WeightViewModel(
+            weightRepository = repository,
+            healthConnectRepository = FakeHealthConnectRepositoryThrowing(java.io.IOException("provider down"))
+        )
+        viewModel.syncWithHealthConnect()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Couldn't sync with Health Connect — try again later", viewModel.lastSyncResult.value)
+    }
+
+    @Test
+    fun `syncWithHealthConnect tells the user when Health Connect isn't installed at all`() = runTest(testDispatcher) {
+        assertFalse(viewModel.healthConnectAvailable)
+
+        viewModel.syncWithHealthConnect()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Health Connect isn't available on this device", viewModel.lastSyncResult.value)
+    }
+
+    @Test
+    fun `healthConnectAvailable is true when a sync source is present`() {
+        val viewModel = WeightViewModel(repository, FakeHealthConnectRepositoryReturning(0))
+        assertTrue(viewModel.healthConnectAvailable)
+    }
 }
 
 private class FakeHealthConnectRepositoryReturning(private val count: Int) : WeighInSyncSource {
     override suspend fun syncWeighIns(): Int = count
+}
+
+private class FakeHealthConnectRepositoryThrowing(private val error: Throwable) : WeighInSyncSource {
+    override suspend fun syncWeighIns(): Int = throw error
 }
