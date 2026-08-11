@@ -47,7 +47,7 @@ class WeeklyReviewRepository(
         val createdAtDate = DayBoundary.logicalDate(
             LocalDateTime.ofInstant(Instant.ofEpochMilli(profile.createdAt), ZoneId.systemDefault())
         )
-        if (weekEnd.isBefore(createdAtDate)) return null
+        if (!weekEnd.isAfter(createdAtDate)) return null // inclusive: onboarding on the week's last day still counts as "predates real usage"
 
         val existing = weeklyReviewDao.getByWeekStart(weekStart.toString())
         if (existing != null) return existing
