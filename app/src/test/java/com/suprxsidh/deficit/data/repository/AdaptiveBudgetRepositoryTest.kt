@@ -87,6 +87,7 @@ class AdaptiveBudgetRepositoryTest {
 
         repo.clearManualOverride()
         assertNull(settingsRepository.getManualBudgetOverrideKcal())
-        assertEquals(1850, db.userProfileDao().get()?.softBudgetKcal) // recomputed from the still-78kg rolling average
+        // Recomputed from the still-78kg rolling average: bmr=1752.5, tdee=2103.0, floor(2103-500)=1603.
+        assertEquals(1603, db.userProfileDao().get()?.softBudgetKcal)
     }
 }
