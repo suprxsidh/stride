@@ -1,12 +1,16 @@
 package com.suprxsidh.deficit.data
 
 import android.content.Context
+import androidx.health.connect.client.HealthConnectClient
 import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.repository.FoodRepository
+import com.suprxsidh.deficit.data.repository.HealthConnectRepository
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
 import com.suprxsidh.deficit.data.repository.WeightRepository
 import com.suprxsidh.deficit.food.off.OpenFoodFactsRepository
 import com.suprxsidh.deficit.food.off.OpenFoodFactsServiceFactory
+import com.suprxsidh.deficit.health.HealthConnectDataSource
+import com.suprxsidh.deficit.health.HealthConnectManager
 
 class AppContainer(context: Context) {
     private val database = DeficitDatabase.getInstance(context)
@@ -17,4 +21,20 @@ class AppContainer(context: Context) {
         OpenFoodFactsServiceFactory.create(),
         database.offCacheDao()
     )
+
+    // Nullable: Health Connect may not be installed/available on this device. Only construct
+    // the real client-backed data source when the SDK reports SDK_AVAILABLE; otherwise leave
+    // this null and have callers (Tasks 6/7/8/9) null-check and show an "unavailable" UI state
+    // instead of crashing AppContainer construction.
+    val healthConnectRepository: HealthConnectRepository? =
+        if (HealthConnectManager.availability(context) == HealthConnectClient.SDK_AVAILABLE) {
+            HealthConnectRepository(
+                dataSource = HealthConnectDataSource(HealthConnectManager.getClient(context)),
+                exerciseSessionDao = database.exerciseSessionDao(),
+                syncStateDao = database.syncStateDao(),
+                weighInDao = database.weighInDao()
+            )
+        } else {
+            null
+        }
 }
