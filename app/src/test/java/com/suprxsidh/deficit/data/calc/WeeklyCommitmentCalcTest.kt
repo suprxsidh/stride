@@ -5,23 +5,30 @@ import org.junit.Test
 
 class WeeklyCommitmentCalcTest {
     @Test
-    fun `floorState OK runs still attainable`() {
-        assertEquals(FloorState.OK, WeeklyCommitmentCalc.floorState(runsThisWeek = 0, floor = 3, daysLeftInclusive = 7))
-        assertEquals(FloorState.OK, WeeklyCommitmentCalc.floorState(runsThisWeek = 2, floor = 3, daysLeftInclusive = 2))
+    fun `floorState is OK when the floor is already met`() {
+        assertEquals(FloorState.OK, WeeklyCommitmentCalc.floorState(runsThisWeek = 3, floor = 3, daysLeftInclusive = 5))
+        assertEquals(FloorState.OK, WeeklyCommitmentCalc.floorState(runsThisWeek = 5, floor = 3, daysLeftInclusive = 1))
     }
 
     @Test
-    fun `floorState AT_RISK must run every remaining day`() {
-        assertEquals(FloorState.AT_RISK, WeeklyCommitmentCalc.floorState(runsThisWeek = 1, floor = 3, daysLeftInclusive = 3))
+    fun `floorState is OK when there is still slack in the remaining days`() {
+        // 3 runs still needed, 4 days left -> comfortable.
+        assertEquals(FloorState.OK, WeeklyCommitmentCalc.floorState(runsThisWeek = 0, floor = 3, daysLeftInclusive = 4))
     }
 
     @Test
-    fun `floorState IMPOSSIBLE remaining runs exceed remaining days`() {
+    fun `floorState is AT_RISK when remaining runs exactly equal remaining days`() {
+        // 3 runs still needed, exactly 3 days left -> must run every remaining day.
+        assertEquals(FloorState.AT_RISK, WeeklyCommitmentCalc.floorState(runsThisWeek = 0, floor = 3, daysLeftInclusive = 3))
+    }
+
+    @Test
+    fun `floorState is IMPOSSIBLE when remaining runs exceed remaining days`() {
         assertEquals(FloorState.IMPOSSIBLE, WeeklyCommitmentCalc.floorState(runsThisWeek = 0, floor = 3, daysLeftInclusive = 2))
     }
 
     @Test
-    fun `weekOutcome classifies broken, floor-met, target-met weeks`() {
+    fun `weekOutcome classifies broken, floor-met, and target-met weeks`() {
         assertEquals(WeekOutcome.BROKEN, WeeklyCommitmentCalc.weekOutcome(runsThisWeek = 2, floor = 3, target = 4))
         assertEquals(WeekOutcome.FLOOR_MET, WeeklyCommitmentCalc.weekOutcome(runsThisWeek = 3, floor = 3, target = 4))
         assertEquals(WeekOutcome.TARGET_MET, WeeklyCommitmentCalc.weekOutcome(runsThisWeek = 4, floor = 3, target = 4))
@@ -29,7 +36,7 @@ class WeeklyCommitmentCalcTest {
     }
 
     @Test
-    fun `consecutiveFloorIntactStreak counts most-recent week until first broken week`() {
+    fun `consecutiveFloorIntactStreak counts from most-recent week until the first broken week`() {
         assertEquals(
             3,
             WeeklyCommitmentCalc.consecutiveFloorIntactStreak(

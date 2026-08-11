@@ -14,11 +14,11 @@ enum class WeekOutcome {
 
 object WeeklyCommitmentCalc {
     fun floorState(runsThisWeek: Int, floor: Int, daysLeftInclusive: Int): FloorState {
-        val runsNeeded = floor - runsThisWeek
+        val remaining = (floor - runsThisWeek).coerceAtLeast(0)
         return when {
-            runsNeeded > daysLeftInclusive -> FloorState.IMPOSSIBLE
-            runsNeeded == daysLeftInclusive - 1 && daysLeftInclusive >= 3 -> FloorState.AT_RISK
-            runsNeeded == daysLeftInclusive -> FloorState.AT_RISK
+            remaining == 0 -> FloorState.OK
+            remaining > daysLeftInclusive -> FloorState.IMPOSSIBLE
+            remaining == daysLeftInclusive -> FloorState.AT_RISK
             else -> FloorState.OK
         }
     }
