@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -50,11 +51,12 @@ class ExerciseSessionDaoTest {
     fun `observeAll orders by startTime descending`() = runTest {
         dao.insert(session(hcRecordId = "hc-1", startTimeEpochMs = 1_000L))
         dao.insert(session(hcRecordId = "hc-2", startTimeEpochMs = 2_000L))
-        val all = dao.observeAll()
-        // Flow collection is exercised in the repository test (Task 4); here we just
-        // confirm insert didn't throw and both rows are distinct via getByHcRecordId.
-        assertEquals("hc-2", dao.getByHcRecordId("hc-2")?.hcRecordId)
-        assertEquals("hc-1", dao.getByHcRecordId("hc-1")?.hcRecordId)
+
+        val all = dao.observeAll().first()
+
+        assertEquals(2, all.size)
+        assertEquals("hc-2", all[0].hcRecordId)
+        assertEquals("hc-1", all[1].hcRecordId)
     }
 
     private fun session(hcRecordId: String, startTimeEpochMs: Long = 1_700_000_000_000L) = ExerciseSessionEntity(
