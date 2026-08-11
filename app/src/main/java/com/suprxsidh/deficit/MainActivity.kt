@@ -24,9 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.health.connect.client.HealthConnectClient
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.suprxsidh.deficit.health.HealthConnectManager
+import com.suprxsidh.deficit.health.HealthConnectSyncWorker
 import com.suprxsidh.deficit.ui.nav.DeficitNavHost
 import com.suprxsidh.deficit.ui.nav.Routes
 import com.suprxsidh.deficit.ui.theme.DeficitTheme
@@ -53,6 +56,13 @@ class MainActivity : ComponentActivity() {
                     } catch (e: Exception) {
                         Log.e("MainActivity", "Failed to check existing profile", e)
                         Routes.ONBOARDING
+                    }
+
+                    if (HealthConnectManager.availability(this@MainActivity) == HealthConnectClient.SDK_AVAILABLE &&
+                        HealthConnectManager.hasAllPermissions(this@MainActivity)
+                    ) {
+                        HealthConnectSyncWorker.schedulePeriodic(applicationContext)
+                        HealthConnectSyncWorker.triggerOneOff(applicationContext)
                     }
                 }
                 Box(modifier = Modifier.fillMaxSize()) {
