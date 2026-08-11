@@ -18,6 +18,9 @@ interface FoodEntryDao {
     @Query("SELECT COALESCE(SUM(bufferedKcal), 0) FROM food_entry WHERE date = :date")
     fun observeBufferedTotalForDate(date: String): Flow<Int>
 
+    @Query("SELECT * FROM food_entry WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC, loggedAt ASC")
+    suspend fun getForDateRange(startDate: String, endDate: String): List<FoodEntryEntity>
+
     @Delete
     suspend fun delete(entry: FoodEntryEntity)
 }

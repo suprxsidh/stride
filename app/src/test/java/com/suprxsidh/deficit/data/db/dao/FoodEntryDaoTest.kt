@@ -57,4 +57,16 @@ class FoodEntryDaoTest {
         val entries = dao.observeForDate("2026-08-10").first()
         assertEquals(listOf("First", "Second"), entries.map { it.name })
     }
+
+    @Test
+    fun `getForDateRange returns entries within the inclusive range, ordered by date then time`() = runTest {
+        dao.insert(FoodEntryEntity(date = "2024-01-01", name = "a", rawKcal = 100, bufferedKcal = 110, source = "manual", offBarcode = null, loggedAt = 1L))
+        dao.insert(FoodEntryEntity(date = "2024-01-03", name = "b", rawKcal = 200, bufferedKcal = 220, source = "manual", offBarcode = null, loggedAt = 2L))
+        dao.insert(FoodEntryEntity(date = "2024-01-10", name = "c", rawKcal = 300, bufferedKcal = 330, source = "manual", offBarcode = null, loggedAt = 3L)) // outside range
+
+        val inRange = dao.getForDateRange("2024-01-01", "2024-01-07")
+        assertEquals(2, inRange.size)
+        assertEquals("a", inRange[0].name)
+        assertEquals("b", inRange[1].name)
+    }
 }
