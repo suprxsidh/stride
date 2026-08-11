@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,5 +65,42 @@ class GeminiFoodEstimatorTest {
                 estimator.estimate("test-key", null, null)
             }
         }
+    }
+
+    @Test
+    fun `estimate sends responseMimeType and camelCase field names in the request body`() = runTest {
+        val geminiJsonBody =
+            """{"items":[{"name":"2 rotis","kcal":180}],"totalKcal":180,"confidence":"medium"}"""
+        val wrapped =
+            """{"candidates":[{"content":{"parts":[{"text":${org.json.JSONObject.quote(geminiJsonBody)}}]}}]}"""
+        server.enqueue(MockResponse().setBody(wrapped).setResponseCode(200))
+
+        estimator.estimate(apiKey = "test-key", description = "2 rotis", photoBase64 = null)
+
+        val recorded = server.takeRequest()
+        val sentBody = recorded.body.readUtf8()
+        assertTrue(sentBody.contains("\"responseMimeType\":\"application/json\""))
+        assertTrue(sentBody.contains("\"responseSchema\""))
+        // must not regress back to snake_case field names
+        assertTrue(!sentBody.contains("response_mime_type"))
+        assertTrue(!sentBody.contains("response_schema"))
+    }
+
+    @Test
+    fun `estimate sends camelCase inlineData and mimeType when a photo is included`() = runTest {
+        val geminiJsonBody =
+            """{"items":[{"name":"rice","kcal":200}],"totalKcal":200,"confidence":"low"}"""
+        val wrapped =
+            """{"candidates":[{"content":{"parts":[{"text":${org.json.JSONObject.quote(geminiJsonBody)}}]}}]}"""
+        server.enqueue(MockResponse().setBody(wrapped).setResponseCode(200))
+
+        estimator.estimate(apiKey = "test-key", description = null, photoBase64 = "ZmFrZS1iYXNlNjQ=")
+
+        val recorded = server.takeRequest()
+        val sentBody = recorded.body.readUtf8()
+        assertTrue(sentBody.contains("\"inlineData\""))
+        assertTrue(sentBody.contains("\"mimeType\":\"image/jpeg\""))
+        assertTrue(!sentBody.contains("inline_data"))
+        assertTrue(!sentBody.contains("mime_type"))
     }
 }

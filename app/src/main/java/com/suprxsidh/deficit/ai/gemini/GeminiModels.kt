@@ -1,6 +1,5 @@
 package com.suprxsidh.deficit.ai.gemini
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -15,19 +14,19 @@ data class GeminiContent(val parts: List<GeminiPart>)
 @Serializable
 data class GeminiPart(
     val text: String? = null,
-    @SerialName("inline_data") val inlineData: GeminiInlineData? = null
+    val inlineData: GeminiInlineData? = null
 )
 
 @Serializable
 data class GeminiInlineData(
-    @SerialName("mime_type") val mimeType: String,
+    val mimeType: String,
     val data: String
 )
 
 @Serializable
 data class GeminiGenerationConfig(
-    @SerialName("response_mime_type") val responseMimeType: String = "application/json",
-    @SerialName("response_schema") val responseSchema: GeminiSchema
+    val responseMimeType: String,
+    val responseSchema: GeminiSchema
 )
 
 @Serializable

@@ -23,7 +23,10 @@ class GeminiFoodEstimator(
         }
         val request = GeminiGenerateContentRequest(
             contents = listOf(GeminiContent(parts)),
-            generationConfig = GeminiGenerationConfig(responseSchema = FOOD_ESTIMATE_SCHEMA)
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = "application/json",
+                responseSchema = FOOD_ESTIMATE_SCHEMA
+            )
         )
         val response = try {
             api.generateContent(model, apiKey, request)
