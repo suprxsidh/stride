@@ -139,7 +139,7 @@ private fun HealthConnectSetupStep(
         Text("Connect Health Connect", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(16.dp))
         Text("1. Open Samsung Health → Settings → Data management → Health Connect sync, and turn it on.")
-        Text("2. Grant this app the Exercise, Steps, Distance, Heart Rate, and Weight permissions when prompted.")
+        Text("2. Grant this app the Exercise, Calories, Distance, Heart Rate, and Weight permissions when prompted.")
         Text("Sync can take 30–60 minutes after a run. Opening Samsung Health first speeds it up.")
         Spacer(Modifier.height(24.dp))
         if (permissionsGranted) {

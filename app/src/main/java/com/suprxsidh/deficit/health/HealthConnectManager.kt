@@ -8,18 +8,21 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
-import androidx.health.connect.client.records.SpeedRecord
-import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.WeightRecord
 
 object HealthConnectManager {
+    /**
+     * Exactly the record types [com.suprxsidh.deficit.health.HealthConnectDataSource] actually
+     * touches, and nothing more. [hasAllPermissions] is a `containsAll` check, so every extra type
+     * listed here is another checkbox the user can decline in the Health Connect consent screen to
+     * permanently block sync. READ_STEPS and READ_SPEED were requested but never read, so declining
+     * either disabled the whole feature for no benefit.
+     */
     val REQUIRED_PERMISSIONS: Set<String> = setOf(
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
-        HealthPermission.getReadPermission(SpeedRecord::class),
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getWritePermission(WeightRecord::class)

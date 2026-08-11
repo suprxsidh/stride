@@ -53,7 +53,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as DeficitApp
-        lifecycleScope.launch { app.container.geminiFoodRepository.retryPendingDrafts() }
+        lifecycleScope.launch {
+            try {
+                app.container.geminiFoodRepository.retryPendingDrafts()
+            } catch (e: Exception) {
+                // Draft retry is opportunistic; a DB or network failure must not take startup down.
+                Log.e("MainActivity", "Failed to retry pending Gemini drafts", e)
+            }
+        }
         setContent {
             DeficitTheme {
                 var startDestination by remember { mutableStateOf<String?>(null) }
@@ -66,11 +73,17 @@ class MainActivity : ComponentActivity() {
                         Routes.ONBOARDING
                     }
 
-                    if (HealthConnectManager.availability(this@MainActivity) == HealthConnectClient.SDK_AVAILABLE &&
-                        HealthConnectManager.hasAllPermissions(this@MainActivity)
-                    ) {
-                        HealthConnectSyncWorker.schedulePeriodic(applicationContext)
-                        HealthConnectSyncWorker.triggerOneOff(applicationContext)
+                    try {
+                        if (HealthConnectManager.availability(this@MainActivity) == HealthConnectClient.SDK_AVAILABLE &&
+                            HealthConnectManager.hasAllPermissions(this@MainActivity)
+                        ) {
+                            HealthConnectSyncWorker.schedulePeriodic(applicationContext)
+                            HealthConnectSyncWorker.triggerOneOff(applicationContext)
+                        }
+                    } catch (e: Exception) {
+                        // A Health Connect provider hiccup shouldn't block the user from the app;
+                        // sync just doesn't get scheduled this launch.
+                        Log.e("MainActivity", "Failed to schedule Health Connect sync", e)
                     }
                 }
                 Box(modifier = Modifier.fillMaxSize()) {

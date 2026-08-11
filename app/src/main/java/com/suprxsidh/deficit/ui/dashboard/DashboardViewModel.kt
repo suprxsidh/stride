@@ -1,5 +1,6 @@
 package com.suprxsidh.deficit.ui.dashboard
 
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -53,10 +54,17 @@ class DashboardViewModel(
 
     init {
         viewModelScope.launch {
-            _healthConnectStatus.value = when {
-                healthConnectAvailability != HealthConnectClient.SDK_AVAILABLE -> HealthConnectStatus.UNAVAILABLE
-                !hasHealthConnectPermissions() -> HealthConnectStatus.PERMISSIONS_NEEDED
-                else -> HealthConnectStatus.OK
+            _healthConnectStatus.value = try {
+                when {
+                    healthConnectAvailability != HealthConnectClient.SDK_AVAILABLE -> HealthConnectStatus.UNAVAILABLE
+                    !hasHealthConnectPermissions() -> HealthConnectStatus.PERMISSIONS_NEEDED
+                    else -> HealthConnectStatus.OK
+                }
+            } catch (e: Exception) {
+                // Querying granted permissions talks to the Health Connect provider and can fail.
+                // Fall back to the "needs attention" state rather than crashing the dashboard.
+                Log.w("DashboardViewModel", "Failed to read Health Connect permission state", e)
+                HealthConnectStatus.PERMISSIONS_NEEDED
             }
         }
     }
