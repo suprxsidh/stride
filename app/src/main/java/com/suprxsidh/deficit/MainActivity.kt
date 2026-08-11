@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.health.connect.client.HealthConnectClient
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -37,6 +38,7 @@ import com.suprxsidh.deficit.health.HealthConnectSyncWorker
 import com.suprxsidh.deficit.ui.nav.DeficitNavHost
 import com.suprxsidh.deficit.ui.nav.Routes
 import com.suprxsidh.deficit.ui.theme.DeficitTheme
+import kotlinx.coroutines.launch
 
 private data class BottomDestination(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as DeficitApp
+        lifecycleScope.launch { app.container.geminiFoodRepository.retryPendingDrafts() }
         setContent {
             DeficitTheme {
                 var startDestination by remember { mutableStateOf<String?>(null) }
