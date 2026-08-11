@@ -105,4 +105,21 @@ class WeeklyReviewRepositoryTest {
         repo.markReviewSeen(requireNotNull(generated).weekStartDate)
         assertNull(repo.unseenReview())
     }
+
+    @Test
+    fun `rollingWeightChangeKg reflects the 7-day rolling average moving during the reviewed week`() = runTest {
+        seedProfile(createdAt = 0L)
+        // Daily weigh-ins 2024-01-01..14, declining 0.1kg/day from 80.0.
+        // Rolling avg on/before 2024-01-07 (day before the reviewed week's Monday) = avg(80.0..79.4) = 79.7
+        // Rolling avg on/before 2024-01-14 (the reviewed week's Sunday) = avg(79.3..78.7) = 79.0
+        // Expected change = 79.0 - 79.7 = -0.7
+        for (i in 0..13) {
+            val date = java.time.LocalDate.of(2024, 1, 1).plusDays(i.toLong())
+            db.weighInDao().upsert(WeighInEntity(date = date.toString(), weightKg = 80.0 - 0.1 * i))
+        }
+
+        val review = repo.generateForCompletedWeekIfDue()
+
+        assertEquals(-0.7, requireNotNull(review?.rollingWeightChangeKg), 0.01)
+    }
 }
