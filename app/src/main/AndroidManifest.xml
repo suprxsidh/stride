@@ -20,7 +20,7 @@
     <application
         android:name=".DeficitApp"
         android:allowBackup="false"
-        android:label="Deficit"
+        android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
