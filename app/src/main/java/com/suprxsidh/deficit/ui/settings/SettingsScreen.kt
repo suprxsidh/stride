@@ -31,7 +31,7 @@ import com.suprxsidh.deficit.DeficitApp
 fun SettingsScreen() {
     val app = LocalContext.current.applicationContext as DeficitApp
     val viewModel: SettingsViewModel = viewModel(factory = viewModelFactory {
-        initializer { SettingsViewModel(app.container.settingsRepository) }
+        initializer { SettingsViewModel(app.container.settingsRepository, app.container.adaptiveBudgetRepository) }
     })
     val currentKey by viewModel.geminiApiKey.collectAsState()
     var input by remember(currentKey) { mutableStateOf(currentKey ?: "") }
@@ -51,6 +51,57 @@ fun SettingsScreen() {
             Button(onClick = { viewModel.saveGeminiApiKey(input) }) { Text("Save") }
             Spacer(Modifier.width(12.dp))
             OutlinedButton(onClick = { input = ""; viewModel.clearGeminiApiKey() }) { Text("Clear") }
+        }
+
+        Spacer(Modifier.height(32.dp))
+        Text("Weekly run goal", style = MaterialTheme.typography.titleMedium)
+        Text("Target and hard floor for the Monday-Sunday week. Any run on any day counts equally.")
+        Spacer(Modifier.height(12.dp))
+
+        val target by viewModel.weeklyRunTarget.collectAsState()
+        val floor by viewModel.weeklyRunFloor.collectAsState()
+        var targetInput by remember(target) { mutableStateOf(target.toString()) }
+        var floorInput by remember(floor) { mutableStateOf(floor.toString()) }
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = targetInput, onValueChange = { targetInput = it },
+                label = { Text("Target") }, modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(12.dp))
+            OutlinedTextField(
+                value = floorInput, onValueChange = { floorInput = it },
+                label = { Text("Floor") }, modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = {
+            targetInput.toIntOrNull()?.let { viewModel.saveWeeklyRunTarget(it) }
+            floorInput.toIntOrNull()?.let { viewModel.saveWeeklyRunFloor(it) }
+        }) { Text("Save weekly goal") }
+
+        Spacer(Modifier.height(32.dp))
+        Text("Calorie budget override", style = MaterialTheme.typography.titleMedium)
+        Text("Manually set the daily budget. Overrides the automatic weekly recompute until cleared.")
+        Spacer(Modifier.height(12.dp))
+
+        val override by viewModel.manualBudgetOverrideKcal.collectAsState()
+        var overrideInput by remember(override) { mutableStateOf(override?.toString() ?: "") }
+
+        OutlinedTextField(
+            value = overrideInput, onValueChange = { overrideInput = it },
+            label = { Text("Daily budget (kcal)") }, modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(12.dp))
+        Row {
+            Button(onClick = { overrideInput.toIntOrNull()?.let { viewModel.saveManualBudgetOverride(it) } }) {
+                Text("Save override")
+            }
+            Spacer(Modifier.width(12.dp))
+            OutlinedButton(onClick = {
+                viewModel.clearManualBudgetOverride()
+                overrideInput = ""
+            }) { Text("Clear override") }
         }
     }
 }

@@ -8,8 +8,12 @@ import com.suprxsidh.deficit.data.db.DeficitDatabase
 import com.suprxsidh.deficit.data.repository.FoodRepository
 import com.suprxsidh.deficit.data.repository.GeminiFoodRepository
 import com.suprxsidh.deficit.data.repository.HealthConnectRepository
+import com.suprxsidh.deficit.data.repository.AdaptiveBudgetRepository
+import com.suprxsidh.deficit.data.repository.ConsistencyRepository
 import com.suprxsidh.deficit.data.repository.SettingsRepository
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
+import com.suprxsidh.deficit.data.repository.WeeklyCommitmentRepository
+import com.suprxsidh.deficit.data.repository.WeeklyReviewRepository
 import com.suprxsidh.deficit.data.repository.WeightRepository
 import com.suprxsidh.deficit.food.off.OpenFoodFactsRepository
 import com.suprxsidh.deficit.food.off.OpenFoodFactsServiceFactory
@@ -22,6 +26,18 @@ class AppContainer(private val context: Context) {
     val foodRepository = FoodRepository(database.foodEntryDao(), database.customFoodDao())
     val weightRepository = WeightRepository(database.weighInDao())
     val settingsRepository = SettingsRepository(database.appSettingsDao())
+    val weeklyCommitmentRepository = WeeklyCommitmentRepository(database.exerciseSessionDao())
+    val adaptiveBudgetRepository = AdaptiveBudgetRepository(database.userProfileDao(), database.weighInDao(), settingsRepository)
+    val weeklyReviewRepository = WeeklyReviewRepository(
+        weeklyReviewDao = database.weeklyReviewDao(),
+        weeklyCommitmentRepository = weeklyCommitmentRepository,
+        adaptiveBudgetRepository = adaptiveBudgetRepository,
+        foodEntryDao = database.foodEntryDao(),
+        weighInDao = database.weighInDao(),
+        userProfileDao = database.userProfileDao(),
+        settingsRepository = settingsRepository
+    )
+    val consistencyRepository = ConsistencyRepository(database.exerciseSessionDao(), database.foodEntryDao(), database.userProfileDao())
     val openFoodFactsRepository = OpenFoodFactsRepository(
         OpenFoodFactsServiceFactory.create(),
         database.offCacheDao()
