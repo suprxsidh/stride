@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.suprxsidh.deficit.ui.consistency.ConsistencyScreen
 import com.suprxsidh.deficit.ui.dashboard.DashboardScreen
 import com.suprxsidh.deficit.ui.food.FoodLogScreen
 import com.suprxsidh.deficit.ui.health.RunDetailScreen
@@ -32,5 +33,6 @@ fun DeficitNavHost(navController: NavHostController, startDestination: String, m
         composable(Routes.WEIGHT) { WeightScreen() }
         composable(Routes.RUN_DETAIL) { RunDetailScreen() }
         composable(Routes.SETTINGS) { SettingsScreen() }
+        composable(Routes.CONSISTENCY) { ConsistencyScreen() }
     }
 }

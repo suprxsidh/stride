@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
@@ -45,7 +46,8 @@ private data class BottomDestination(val route: String, val label: String, val i
 private val BOTTOM_DESTINATIONS = listOf(
     BottomDestination(Routes.DASHBOARD, "Today", Icons.Default.Home),
     BottomDestination(Routes.FOOD_LOG, "Food", Icons.AutoMirrored.Filled.List),
-    BottomDestination(Routes.WEIGHT, "Weight", Icons.Default.Info)
+    BottomDestination(Routes.WEIGHT, "Weight", Icons.Default.Info),
+    BottomDestination(Routes.CONSISTENCY, "Consistency", Icons.Default.DateRange)
 )
 
 class MainActivity : ComponentActivity() {
