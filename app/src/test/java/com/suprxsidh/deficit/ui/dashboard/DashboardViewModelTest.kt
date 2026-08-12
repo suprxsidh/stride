@@ -53,7 +53,8 @@ class DashboardViewModelTest {
     private fun buildViewModel(
         clock: () -> LocalDateTime = { LocalDateTime.of(2026, 8, 10, 12, 0) },
         healthConnectAvailability: Int = HealthConnectClient.SDK_AVAILABLE,
-        hasPermissions: suspend () -> Boolean = { true }
+        hasPermissions: suspend () -> Boolean = { true },
+        isIgnoringBatteryOptimizations: () -> Boolean = { false }
     ): DashboardViewModel {
         val settingsRepository = com.suprxsidh.deficit.data.repository.SettingsRepository(db.appSettingsDao())
         val weeklyCommitmentRepository = com.suprxsidh.deficit.data.repository.WeeklyCommitmentRepository(db.exerciseSessionDao(), clock)
@@ -69,6 +70,7 @@ class DashboardViewModelTest {
             HealthConnectRepository(NoOpHealthDataSource(), db.exerciseSessionDao(), db.syncStateDao(), db.weighInDao(), clock),
             healthConnectAvailability,
             hasPermissions,
+            isIgnoringBatteryOptimizations,
             weeklyCommitmentRepository,
             weeklyReviewRepository,
             settingsRepository,
@@ -218,6 +220,45 @@ class DashboardViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals("0/4 runs this week · 7 days left.", viewModel.motivationLine.value)
+    }
+
+    @Test
+    fun `batteryOptimizationIgnored reflects the lambda's value on load`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            isIgnoringBatteryOptimizations = { true }
+        )
+        backgroundScope.launch { viewModel.batteryOptimizationIgnored.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(true, viewModel.batteryOptimizationIgnored.value)
+    }
+
+    @Test
+    fun `refreshDeviceStatuses rechecks both healthConnectStatus and batteryOptimizationIgnored`() = runTest(testDispatcher) {
+        var permissionsGranted = false
+        var batteryIgnored = false
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            hasPermissions = { permissionsGranted },
+            isIgnoringBatteryOptimizations = { batteryIgnored }
+        )
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        backgroundScope.launch { viewModel.batteryOptimizationIgnored.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(HealthConnectStatus.PERMISSIONS_NEEDED, viewModel.healthConnectStatus.value)
+        assertEquals(false, viewModel.batteryOptimizationIgnored.value)
+
+        // Simulate the user granting Health Connect permissions and disabling battery
+        // optimization via their respective settings deep links, then resuming the app.
+        permissionsGranted = true
+        batteryIgnored = true
+        viewModel.refreshDeviceStatuses()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
+        assertEquals(true, viewModel.batteryOptimizationIgnored.value)
     }
 
     @Test

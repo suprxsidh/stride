@@ -38,6 +38,7 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 app.container.healthConnectRepository,
                 app.container.healthConnectAvailability,
                 app.container::hasHealthConnectPermissions,
+                { com.suprxsidh.deficit.system.BatteryOptimization.isIgnoringBatteryOptimizations(app) },
                 app.container.weeklyCommitmentRepository,
                 app.container.weeklyReviewRepository,
                 app.container.settingsRepository
@@ -50,7 +51,20 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
     val series by viewModel.rollingAverageSeries.collectAsState()
     val todaysRun by viewModel.todaysRun.collectAsState()
     val hcStatus by viewModel.healthConnectStatus.collectAsState()
+    val batteryIgnored by viewModel.batteryOptimizationIgnored.collectAsState()
     val context = LocalContext.current
+
+    // Health Connect permissions and battery optimization are both granted via a settings
+    // deep link outside the app, so recheck both banners whenever the user returns to the
+    // dashboard rather than trusting the one-shot values computed when the ViewModel was created.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.refreshDeviceStatuses()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Today", style = MaterialTheme.typography.titleLarge)
@@ -110,6 +124,17 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 style = MaterialTheme.typography.bodySmall
             )
             HealthConnectStatus.OK -> {}
+        }
+
+        if (!batteryIgnored) {
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Battery optimization may silently stop background sync.")
+                    TextButton(onClick = {
+                        context.startActivity(com.suprxsidh.deficit.system.BatteryOptimization.batterySettingsIntent())
+                    }) { Text("Open battery settings") }
+                }
+            }
         }
 
         Button(onClick = onQuickAdd, modifier = Modifier.padding(top = 16.dp)) {

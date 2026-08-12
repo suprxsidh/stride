@@ -38,7 +38,8 @@ import kotlinx.coroutines.launch
 /** Steps in the onboarding flow, shown in order. */
 private enum class OnboardingStep {
     PROFILE_ENTRY,
-    HEALTH_CONNECT_SETUP
+    HEALTH_CONNECT_SETUP,
+    BATTERY_OPTIMIZATION_SETUP
 }
 
 @Composable
@@ -66,6 +67,27 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             HealthConnectSetupStep(
                 permissionsGranted = permissionsGranted,
                 onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.REQUIRED_PERMISSIONS) },
+                onContinue = { step = OnboardingStep.BATTERY_OPTIMIZATION_SETUP }
+            )
+        }
+        OnboardingStep.BATTERY_OPTIMIZATION_SETUP -> {
+            val context = LocalContext.current
+            var ignored by remember {
+                mutableStateOf(com.suprxsidh.deficit.system.BatteryOptimization.isIgnoringBatteryOptimizations(context))
+            }
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+            androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                        ignored = com.suprxsidh.deficit.system.BatteryOptimization.isIgnoringBatteryOptimizations(context)
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+            BatteryOptimizationSetupStep(
+                ignored = ignored,
+                onOpenSettings = { context.startActivity(com.suprxsidh.deficit.system.BatteryOptimization.batterySettingsIntent()) },
                 onContinue = onComplete
             )
         }
@@ -149,5 +171,28 @@ private fun HealthConnectSetupStep(
         }
         Spacer(Modifier.height(16.dp))
         TextButton(onClick = onContinue) { Text(if (permissionsGranted) "Continue" else "Skip for now") }
+    }
+}
+
+@Composable
+private fun BatteryOptimizationSetupStep(
+    ignored: Boolean,
+    onOpenSettings: () -> Unit,
+    onContinue: () -> Unit
+) {
+    Column(modifier = Modifier.padding(24.dp)) {
+        Text("Protect background sync", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp))
+        Text("This phone's battery settings can silently stop Deficit from syncing runs and weight in the background.")
+        Text("1. Set Deficit's battery usage to unrestricted, or disable battery optimization for it.")
+        Text("2. In Vivo's i Manager, add Deficit to auto-start apps.")
+        Spacer(Modifier.height(24.dp))
+        if (ignored) {
+            Text("Battery optimization disabled ✓")
+        } else {
+            Button(onClick = onOpenSettings) { Text("Open battery settings") }
+        }
+        Spacer(Modifier.height(16.dp))
+        TextButton(onClick = onContinue) { Text(if (ignored) "Continue" else "Skip for now") }
     }
 }

@@ -43,6 +43,7 @@ class DashboardViewModel(
     private val healthConnectRepository: HealthConnectRepository?,
     private val healthConnectAvailability: Int,
     private val hasHealthConnectPermissions: suspend () -> Boolean,
+    private val isIgnoringBatteryOptimizations: () -> Boolean,
     private val weeklyCommitmentRepository: WeeklyCommitmentRepository,
     private val weeklyReviewRepository: WeeklyReviewRepository,
     private val settingsRepository: SettingsRepository,
@@ -81,7 +82,19 @@ class DashboardViewModel(
     private val _healthConnectStatus = MutableStateFlow(HealthConnectStatus.UNAVAILABLE)
     val healthConnectStatus: StateFlow<HealthConnectStatus> = _healthConnectStatus.asStateFlow()
 
-    init {
+    private val _batteryOptimizationIgnored = MutableStateFlow(false)
+    val batteryOptimizationIgnored: StateFlow<Boolean> = _batteryOptimizationIgnored.asStateFlow()
+
+    /**
+     * Rechecks both device-level status banners. Called once from [init] and again from
+     * DashboardScreen's ON_RESUME lifecycle observer — Health Connect permissions and battery
+     * optimization are both granted via a settings deep link outside the app, so the dashboard
+     * must recheck when the user returns rather than trusting a one-shot value computed at
+     * ViewModel creation (previously `healthConnectStatus` was only ever computed once in `init`
+     * and never rechecked after the user granted permission this way).
+     */
+    fun refreshDeviceStatuses() {
+        _batteryOptimizationIgnored.value = isIgnoringBatteryOptimizations()
         viewModelScope.launch {
             _healthConnectStatus.value = try {
                 when {
@@ -96,6 +109,10 @@ class DashboardViewModel(
                 HealthConnectStatus.PERMISSIONS_NEEDED
             }
         }
+    }
+
+    init {
+        refreshDeviceStatuses()
 
         viewModelScope.launch {
             try {
