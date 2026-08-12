@@ -56,4 +56,23 @@ class MotivationLineTest {
         val (_, line) = MotivationLine.dailyLine(oneWeek, previousCategory = MotivationCategory.WEEKLY_PROGRESS)
         assertEquals("Floor unbroken 1 week running.", line)
     }
+
+    // renderIfEligible backs DashboardViewModel's "one line per logical day" fix: on a
+    // same-day reload it re-renders the already-persisted category against current inputs
+    // instead of re-rolling dailyLine's rotation logic.
+    @Test
+    fun `renderIfEligible re-renders an eligible category without rolling to a different one`() {
+        val line = MotivationLine.renderIfEligible(richInputs, MotivationCategory.FLOOR_AT_RISK)
+        assertEquals("Run today or tomorrow to protect your floor.", line)
+    }
+
+    @Test
+    fun `renderIfEligible returns null when the stored category is no longer eligible`() {
+        // WEIGHT_TREND requires a non-null, non-zero rollingWeightChangeKg; if that stat
+        // vanished intra-day, the caller must be told to fall back to a fresh pick rather
+        // than crashing on WEIGHT_TREND's non-null assertion or showing a stale line.
+        val noWeightData = richInputs.copy(rollingWeightChangeKg = null)
+        val line = MotivationLine.renderIfEligible(noWeightData, MotivationCategory.WEIGHT_TREND)
+        assertEquals(null, line)
+    }
 }

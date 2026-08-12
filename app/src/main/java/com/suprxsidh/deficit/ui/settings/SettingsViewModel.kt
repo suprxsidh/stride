@@ -42,18 +42,42 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.setGeminiApiKey(null) }
     }
 
+    private companion object {
+        const val MIN_MANUAL_BUDGET_KCAL = 1200
+    }
+
+    // Weekly run target/floor are user-typed integers with no UI-level input restriction, and a
+    // bad value here (0, negative, floor > target) would permanently wedge the floor/target math
+    // in WeeklyCommitmentCalc with no recovery path short of reinstalling. Clamp to a sane 1..7
+    // range (a week has 7 days) and preserve the floor <= target invariant by nudging whichever
+    // value wasn't just edited, using the other's *current* StateFlow value.
     fun saveWeeklyRunTarget(target: Int) {
-        viewModelScope.launch { settingsRepository.setWeeklyRunTarget(target) }
+        val clampedTarget = target.coerceIn(1, 7)
+        viewModelScope.launch {
+            val currentFloor = weeklyRunFloor.value
+            settingsRepository.setWeeklyRunTarget(clampedTarget)
+            if (currentFloor > clampedTarget) {
+                settingsRepository.setWeeklyRunFloor(clampedTarget)
+            }
+        }
     }
 
     fun saveWeeklyRunFloor(floor: Int) {
-        viewModelScope.launch { settingsRepository.setWeeklyRunFloor(floor) }
+        val clampedFloor = floor.coerceIn(1, 7)
+        viewModelScope.launch {
+            val currentTarget = weeklyRunTarget.value
+            settingsRepository.setWeeklyRunFloor(clampedFloor)
+            if (clampedFloor > currentTarget) {
+                settingsRepository.setWeeklyRunTarget(clampedFloor)
+            }
+        }
     }
 
     fun saveManualBudgetOverride(kcal: Int) {
+        val clampedKcal = maxOf(kcal, MIN_MANUAL_BUDGET_KCAL)
         viewModelScope.launch {
-            adaptiveBudgetRepository.setManualOverride(kcal)
-            _manualBudgetOverrideKcal.value = kcal
+            adaptiveBudgetRepository.setManualOverride(clampedKcal)
+            _manualBudgetOverrideKcal.value = clampedKcal
         }
     }
 

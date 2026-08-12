@@ -2,6 +2,7 @@ package com.suprxsidh.deficit.data.repository
 
 import com.suprxsidh.deficit.data.calc.DayBoundary
 import com.suprxsidh.deficit.data.calc.FloorState
+import com.suprxsidh.deficit.data.calc.RunTypes
 import com.suprxsidh.deficit.data.calc.WeekBoundary
 import com.suprxsidh.deficit.data.calc.WeekOutcome
 import com.suprxsidh.deficit.data.calc.WeeklyCommitmentCalc
@@ -26,13 +27,12 @@ class WeeklyCommitmentRepository(
     private val clock: () -> LocalDateTime = { LocalDateTime.now() }
 ) {
     companion object {
-        private val RUN_EXERCISE_TYPES = setOf("56", "57") // EXERCISE_TYPE_RUNNING, EXERCISE_TYPE_RUNNING_TREADMILL
         private const val STREAK_LOOKBACK_WEEKS = 104 // 2 years; the streak scan stops at the first broken week anyway
     }
 
     private fun runDaysInRange(sessions: List<ExerciseSessionEntity>, start: LocalDate, end: LocalDate): Set<LocalDate> =
         sessions.asSequence()
-            .filter { it.exerciseType in RUN_EXERCISE_TYPES }
+            .filter { it.exerciseType in RunTypes.EXERCISE_TYPES }
             .map { LocalDate.parse(it.date) }
             .filter { !it.isBefore(start) && !it.isAfter(end) }
             .toSet()
@@ -75,6 +75,6 @@ class WeeklyCommitmentRepository(
 
     suspend fun totalRunDaysAllTime(): Int {
         val sessions = exerciseSessionDao.observeAll().first()
-        return sessions.filter { it.exerciseType in RUN_EXERCISE_TYPES }.map { it.date }.toSet().size
+        return sessions.filter { it.exerciseType in RunTypes.EXERCISE_TYPES }.map { it.date }.toSet().size
     }
 }

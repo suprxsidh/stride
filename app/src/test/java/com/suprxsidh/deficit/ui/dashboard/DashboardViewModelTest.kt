@@ -280,4 +280,63 @@ class DashboardViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         assertNull(viewModel.unseenWeeklyReview.value)
     }
+
+    @Test
+    fun `floorIntactStreakWeeks exposes the repository's streak value`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.floorIntactStreakWeeks.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // No prior weeks in the DB at all -> the most recent completed week is BROKEN
+        // (0 runs < floor), so the streak is 0. This is mainly a wiring check: the same
+        // value the ViewModel already computes for the motivation line must also be
+        // surfaced permanently for WeeklyCommitmentCard (final-review fix).
+        assertEquals(0, viewModel.floorIntactStreakWeeks.value)
+    }
+
+    // Final-review fix: the motivation category used to be re-rolled on every cold start with
+    // no date check, so a second same-day launch could show a *different* line than the first
+    // (see DashboardViewModel's init: the category persisted by launch #1 then looked like
+    // "yesterday's" category to the rotation-avoidance logic, forcing launch #2 to skip to the
+    // next eligible category). These tests insert an old run so two categories are eligible
+    // (WEEKLY_PROGRESS and TOTAL_RUNS) so a rotation would actually be observable.
+    @Test
+    fun `motivation line does not rotate on a second cold start the same logical day`() = runTest(testDispatcher) {
+        db.exerciseSessionDao().insert(
+            ExerciseSessionEntity(
+                hcRecordId = "hc-old", date = "2020-01-01", exerciseType = "56", startTimeEpochMs = 0L,
+                durationMin = 30, distanceM = null, avgPaceSecPerKm = null, avgHr = null, maxHr = null,
+                kcalReal = 300, kcalCredited = 150
+            )
+        )
+        // `viewModel` (built in setUp with clock 2026-08-10 12:00) hasn't run its init
+        // coroutine yet -- StandardTestDispatcher only drains on advanceUntilIdle -- so this
+        // first drain is cold start #1, and it sees the run inserted above.
+        testDispatcher.scheduler.advanceUntilIdle()
+        val firstLine = viewModel.motivationLine.value
+        assertEquals("0/4 runs this week · 7 days left.", firstLine)
+
+        val secondColdStart = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 20, 0) }) // later, same logical day
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(firstLine, secondColdStart.motivationLine.value)
+    }
+
+    @Test
+    fun `motivation line rotates once the logical date actually changes`() = runTest(testDispatcher) {
+        db.exerciseSessionDao().insert(
+            ExerciseSessionEntity(
+                hcRecordId = "hc-old", date = "2020-01-01", exerciseType = "56", startTimeEpochMs = 0L,
+                durationMin = 30, distanceM = null, avgPaceSecPerKm = null, avgHr = null, maxHr = null,
+                kcalReal = 300, kcalCredited = 150
+            )
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        val dayOneLine = viewModel.motivationLine.value
+        assertEquals("0/4 runs this week · 7 days left.", dayOneLine)
+
+        val dayTwo = buildViewModel(clock = { LocalDateTime.of(2026, 8, 11, 9, 0) })
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("1 runs logged since you started.", dayTwo.motivationLine.value)
+    }
 }

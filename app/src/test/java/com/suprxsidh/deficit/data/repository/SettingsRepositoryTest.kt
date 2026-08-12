@@ -82,4 +82,13 @@ class SettingsRepositoryTest {
         repository.setLastMotivationCategory("WEEKLY_PROGRESS")
         assertEquals("WEEKLY_PROGRESS", repository.getLastMotivationCategory())
     }
+
+    // Final-review fix: DashboardViewModel needs to know *when* a motivation category was
+    // last chosen (not just which one) to gate recomputation to once per logical day.
+    @Test
+    fun `last motivation date round-trips and defaults to null`() = runTest {
+        assertEquals(null, repository.getLastMotivationDate())
+        repository.setLastMotivationDate("2026-08-10")
+        assertEquals("2026-08-10", repository.getLastMotivationDate())
+    }
 }

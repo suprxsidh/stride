@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,8 +31,10 @@ import com.suprxsidh.deficit.DeficitApp
 import com.suprxsidh.deficit.data.calc.WeekBoundary
 import com.suprxsidh.deficit.data.calc.WeekOutcome
 import com.suprxsidh.deficit.data.repository.DayConsistency
+import com.suprxsidh.deficit.data.repository.WeekSummary
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun ConsistencyScreen() {
@@ -59,26 +62,44 @@ fun ConsistencyScreen() {
                 for (offset in 0..6) {
                     val date = weekStart.plusDays(offset.toLong())
                     Box(modifier = Modifier.weight(1f).aspectRatio(1f).padding(2.dp), contentAlignment = Alignment.Center) {
-                        byDate[date]?.let { DayCell(it) } ?: (if (date.month == month.month) DayCell(DayConsistency(date, false, false, false, null)) else Unit)
+                        byDate[date]?.let { DayCell(it) }
                     }
                 }
             }
+            // ConsistencyRepository.weeklySummariesForMonth deliberately omits weeks whose
+            // weekStart falls outside the target month (a week mostly in the previous month,
+            // e.g. the first row of February starting Jan 29) to avoid misclassifying a
+            // partial week against the 7-day floor/target math. That means some grid rows
+            // here have no matching entry in `weeks` — render that as an explicit, visually
+            // muted "not enough data" line (via weekSummaryText below) rather than silently
+            // showing nothing.
             val summary = weeks.firstOrNull { it.weekStart == weekStart }
-            summary?.let {
-                val outcomeNote = when (it.outcome) {
-                    WeekOutcome.BROKEN -> " · floor missed"
-                    WeekOutcome.FLOOR_MET -> " · floor met"
-                    WeekOutcome.TARGET_MET -> " · target met"
-                    null -> ""
-                }
-                Text(
-                    "${it.daysRan} ran · ${it.daysLogged} logged$outcomeNote",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
+            Text(
+                weekSummaryText(summary),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (summary == null) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
         }
     }
+}
+
+/**
+ * Formats a week's grid-row summary line per SPEC §3.6 ("5/7 days ran, 6/7 logged, avg
+ * deficit ~X kcal"). Pure and Compose-free so it can be unit tested directly: no Robolectric
+ * or Compose test harness required. Returns a "not enough data yet" placeholder when
+ * [summary] is null — see the call site's comment for why a grid row can lack one.
+ */
+internal fun weekSummaryText(summary: WeekSummary?): String {
+    if (summary == null) return "Not enough data yet"
+    val outcomeNote = when (summary.outcome) {
+        WeekOutcome.BROKEN -> " · floor missed"
+        WeekOutcome.FLOOR_MET -> " · floor met"
+        WeekOutcome.TARGET_MET -> " · target met"
+        null -> ""
+    }
+    val avgDeficitNote = summary.avgDeficitKcal?.let { " · avg deficit ~${it.roundToInt()} kcal" } ?: ""
+    return "${summary.daysRan}/7 ran · ${summary.daysLogged}/7 logged$avgDeficitNote$outcomeNote"
 }
 
 @Composable

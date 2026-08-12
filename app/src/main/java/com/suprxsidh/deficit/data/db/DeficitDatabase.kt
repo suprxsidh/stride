@@ -39,7 +39,11 @@ import com.suprxsidh.deficit.data.db.entity.WeeklyReviewEntity
         WeeklyReviewEntity::class
     ],
     // v5: WeeklyReviewEntity added; AppSettingsEntity gained weekly commitment + review fields.
-    version = 5,
+    // v6: AppSettingsEntity gained lastMotivationDate (final-review fix wave, gates the
+    // motivation line to once per logical day). No Migration object — same convention as v4->v5:
+    // fallbackToDestructiveMigration() below handles the upgrade for this single-user, sideloaded,
+    // no-cloud-sync app.
+    version = 6,
     exportSchema = false
 )
 abstract class DeficitDatabase : RoomDatabase() {

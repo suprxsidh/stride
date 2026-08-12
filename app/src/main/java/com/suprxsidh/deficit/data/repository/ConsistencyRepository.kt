@@ -1,5 +1,6 @@
 package com.suprxsidh.deficit.data.repository
 
+import com.suprxsidh.deficit.data.calc.RunTypes
 import com.suprxsidh.deficit.data.calc.WeekBoundary
 import com.suprxsidh.deficit.data.calc.WeekOutcome
 import com.suprxsidh.deficit.data.calc.WeeklyCommitmentCalc
@@ -32,10 +33,6 @@ class ConsistencyRepository(
     private val foodEntryDao: FoodEntryDao,
     private val userProfileDao: UserProfileDao
 ) {
-    companion object {
-        private val RUN_EXERCISE_TYPES = setOf("56", "57") // EXERCISE_TYPE_RUNNING, EXERCISE_TYPE_RUNNING_TREADMILL
-    }
-
     suspend fun dailyConsistencyForMonth(month: YearMonth): List<DayConsistency> =
         dailyConsistencyForRange(month.atDay(1), month.atEndOfMonth())
 
@@ -79,7 +76,7 @@ class ConsistencyRepository(
         val sessions = exerciseSessionDao.observeAll().first()
         val entries = foodEntryDao.getForDateRange(start.toString(), end.toString())
         val budget = userProfileDao.get()?.softBudgetKcal
-        val runDays = sessions.filter { it.exerciseType in RUN_EXERCISE_TYPES }.map { LocalDate.parse(it.date) }.toSet()
+        val runDays = sessions.filter { it.exerciseType in RunTypes.EXERCISE_TYPES }.map { LocalDate.parse(it.date) }.toSet()
         val entriesByDay = entries.groupBy { it.date }
         val dayCount = ChronoUnit.DAYS.between(start, end).toInt() + 1
 

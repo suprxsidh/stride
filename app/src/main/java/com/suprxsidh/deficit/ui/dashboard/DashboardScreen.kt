@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
@@ -66,7 +68,7 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("Today", style = MaterialTheme.typography.titleLarge)
 
         val budget = profile?.softBudgetKcal ?: 0
@@ -82,7 +84,8 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
         unseenReview?.let { WeeklyReviewCard(it, onDismiss = viewModel::dismissWeeklyReview) }
 
         val weeklyState by viewModel.weeklyCommitmentState.collectAsState()
-        weeklyState?.let { WeeklyCommitmentCard(it) }
+        val floorIntactStreakWeeks by viewModel.floorIntactStreakWeeks.collectAsState()
+        weeklyState?.let { WeeklyCommitmentCard(it, floorIntactStreakWeeks) }
 
         val motivationLine by viewModel.motivationLine.collectAsState()
         motivationLine?.let { MotivationCard(it) }

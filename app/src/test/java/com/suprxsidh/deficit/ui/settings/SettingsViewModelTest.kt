@@ -94,4 +94,86 @@ class SettingsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(null, viewModel.manualBudgetOverrideKcal.value)
     }
+
+    // Final-review fix: weekly target/floor were previously persisted as-typed with no
+    // validation, so a stray 0 or a huge number could permanently wedge the floor/target math
+    // with no recovery path. These pin the 1..7 clamp and the floor <= target invariant.
+
+    @Test
+    fun `saveWeeklyRunTarget clamps values outside 1 to 7`() = runTest {
+        backgroundScope.launch { viewModel.weeklyRunTarget.collect {} }
+        backgroundScope.launch { viewModel.weeklyRunFloor.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveWeeklyRunTarget(0)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, viewModel.weeklyRunTarget.value)
+
+        viewModel.saveWeeklyRunTarget(99)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(7, viewModel.weeklyRunTarget.value)
+    }
+
+    @Test
+    fun `saveWeeklyRunFloor clamps values outside 1 to 7`() = runTest {
+        backgroundScope.launch { viewModel.weeklyRunTarget.collect {} }
+        backgroundScope.launch { viewModel.weeklyRunFloor.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveWeeklyRunFloor(-5)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, viewModel.weeklyRunFloor.value)
+
+        viewModel.saveWeeklyRunFloor(20)
+        testDispatcher.scheduler.advanceUntilIdle()
+        // target was still the 4 default, which is < the clamped floor of 7, so the target
+        // must be raised alongside it to preserve floor <= target.
+        assertEquals(7, viewModel.weeklyRunFloor.value)
+        assertEquals(7, viewModel.weeklyRunTarget.value)
+    }
+
+    @Test
+    fun `saveWeeklyRunTarget below the current floor pulls the floor down to match`() = runTest {
+        backgroundScope.launch { viewModel.weeklyRunTarget.collect {} }
+        backgroundScope.launch { viewModel.weeklyRunFloor.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveWeeklyRunFloor(5)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, viewModel.weeklyRunFloor.value)
+        assertEquals(5, viewModel.weeklyRunTarget.value) // raised from default 4 to preserve invariant
+
+        viewModel.saveWeeklyRunTarget(2)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, viewModel.weeklyRunTarget.value)
+        assertEquals(2, viewModel.weeklyRunFloor.value) // pulled down: floor must not exceed target
+    }
+
+    @Test
+    fun `saveWeeklyRunFloor above the current target pushes the target up to match`() = runTest {
+        backgroundScope.launch { viewModel.weeklyRunTarget.collect {} }
+        backgroundScope.launch { viewModel.weeklyRunFloor.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveWeeklyRunTarget(4)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveWeeklyRunFloor(6)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(6, viewModel.weeklyRunFloor.value)
+        assertEquals(6, viewModel.weeklyRunTarget.value) // pushed up: target must not be below floor
+    }
+
+    @Test
+    fun `saveManualBudgetOverride clamps below the 1200 kcal minimum`() = runTest {
+        backgroundScope.launch { viewModel.manualBudgetOverrideKcal.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveManualBudgetOverride(400)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1200, viewModel.manualBudgetOverrideKcal.value)
+    }
 }

@@ -76,6 +76,12 @@ class DashboardViewModel(
     private val _motivationLine = MutableStateFlow<String?>(null)
     val motivationLine: StateFlow<String?> = _motivationLine.asStateFlow()
 
+    // SPEC §3.7's "headline streak stat" (consecutive weeks with the floor intact) needs a
+    // permanent home in the UI, not just an occasional appearance via the rotating motivation
+    // line. Computed once alongside the motivation line in init (same cost, same lifecycle).
+    private val _floorIntactStreakWeeks = MutableStateFlow(0)
+    val floorIntactStreakWeeks: StateFlow<Int> = _floorIntactStreakWeeks.asStateFlow()
+
     private val _unseenWeeklyReview = MutableStateFlow<WeeklyReviewEntity?>(null)
     val unseenWeeklyReview: StateFlow<WeeklyReviewEntity?> = _unseenWeeklyReview.asStateFlow()
 
@@ -132,8 +138,7 @@ class DashboardViewModel(
                 val streak = weeklyCommitmentRepository.consecutiveFloorIntactStreakWeeks(target, floor)
                 val totalRuns = weeklyCommitmentRepository.totalRunDaysAllTime()
                 val weightChange = weightRepository.observeTotalChangeSinceStart().first()
-                val previousCategory = settingsRepository.getLastMotivationCategory()
-                    ?.let { runCatching { MotivationCategory.valueOf(it) }.getOrNull() }
+                _floorIntactStreakWeeks.value = streak
 
                 val inputs = MotivationInputs(
                     floorAtRisk = state.floorState != FloorState.OK,
@@ -144,8 +149,32 @@ class DashboardViewModel(
                     rollingWeightChangeKg = weightChange,
                     totalRunsLogged = totalRuns
                 )
-                val (category, line) = MotivationLine.dailyLine(inputs, previousCategory)
+
+                val today = DayBoundary.logicalDate(clock()).toString()
+                val lastDate = settingsRepository.getLastMotivationDate()
+                val storedCategory = settingsRepository.getLastMotivationCategory()
+                    ?.let { runCatching { MotivationCategory.valueOf(it) }.getOrNull() }
+
+                // SPEC §3.7: one motivation line per logical day, never the same category two
+                // days running. Re-picking a category on every cold start (the old behavior)
+                // could show a *different* line on a second same-day launch, because the
+                // category persisted by the first launch then looked like "yesterday's"
+                // category to the rotation-avoidance logic below. Gate recomputation on the
+                // logical date actually having changed, and reuse today's already-chosen
+                // category otherwise.
+                if (lastDate == today && storedCategory != null) {
+                    val reused = MotivationLine.renderIfEligible(inputs, storedCategory)
+                    if (reused != null) {
+                        _motivationLine.value = reused
+                        return@launch
+                    }
+                    // storedCategory is no longer eligible (e.g. its underlying stat vanished
+                    // intra-day) -- fall through and pick a fresh one below.
+                }
+
+                val (category, line) = MotivationLine.dailyLine(inputs, storedCategory)
                 settingsRepository.setLastMotivationCategory(category.name)
+                settingsRepository.setLastMotivationDate(today)
                 _motivationLine.value = line
             } catch (e: Exception) {
                 Log.w("DashboardViewModel", "Failed to compute the motivation line", e)

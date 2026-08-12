@@ -34,6 +34,10 @@ class SettingsRepository(private val dao: AppSettingsDao) {
 
     suspend fun setLastMotivationCategory(category: String) = upsertCopy { it.copy(lastMotivationCategory = category) }
 
+    suspend fun getLastMotivationDate(): String? = dao.get()?.lastMotivationDate
+
+    suspend fun setLastMotivationDate(date: String) = upsertCopy { it.copy(lastMotivationDate = date) }
+
     private suspend fun upsertCopy(mutate: (AppSettingsEntity) -> AppSettingsEntity) {
         val current = dao.get() ?: AppSettingsEntity(id = 1)
         dao.upsert(mutate(current))

@@ -11,5 +11,6 @@ data class AppSettingsEntity(
     val weeklyRunFloor: Int = 3,
     val manualBudgetOverrideKcal: Int? = null,
     val lastReviewSeenWeekStart: String? = null,
-    val lastMotivationCategory: String? = null
+    val lastMotivationCategory: String? = null,
+    val lastMotivationDate: String? = null
 )

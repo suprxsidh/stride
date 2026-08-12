@@ -48,4 +48,15 @@ object MotivationLine {
         val category = if (top == previousCategory && eligible.size > 1) eligible[1] else top
         return category to render(inputs, category)
     }
+
+    /**
+     * Re-renders the line for a [category] chosen earlier today, without re-rolling the
+     * category selection (used to keep the same day's motivation line stable across cold
+     * starts). Returns null if [category] is no longer eligible for [inputs] — e.g. a
+     * WEIGHT_TREND category persisted earlier but the rolling weight change has since become
+     * unavailable — so the caller can fall back to picking a fresh category instead of crashing
+     * or showing a nonsensical line.
+     */
+    fun renderIfEligible(inputs: MotivationInputs, category: MotivationCategory): String? =
+        if (category in eligibleInPriorityOrder(inputs)) render(inputs, category) else null
 }

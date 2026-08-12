@@ -13,12 +13,22 @@ import com.suprxsidh.deficit.data.calc.FloorState
 import com.suprxsidh.deficit.data.repository.WeeklyCommitmentState
 
 @Composable
-fun WeeklyCommitmentCard(state: WeeklyCommitmentState) {
+fun WeeklyCommitmentCard(state: WeeklyCommitmentState, floorIntactStreakWeeks: Int) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "${state.runsThisWeek}/${state.target} runs this week · ${state.daysLeftInclusive} days left",
                 style = MaterialTheme.typography.titleMedium
+            )
+            // SPEC §3.7's headline streak stat needs a permanent, always-visible home rather
+            // than only surfacing occasionally through the rotating motivation line.
+            Text(
+                if (floorIntactStreakWeeks > 0) {
+                    "$floorIntactStreakWeeks week${if (floorIntactStreakWeeks == 1) "" else "s"} with floor intact"
+                } else {
+                    "No streak yet"
+                },
+                style = MaterialTheme.typography.bodyMedium
             )
             when (state.floorState) {
                 FloorState.AT_RISK -> Text(
