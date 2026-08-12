@@ -37,7 +37,10 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 app.container.weightRepository,
                 app.container.healthConnectRepository,
                 app.container.healthConnectAvailability,
-                app.container::hasHealthConnectPermissions
+                app.container::hasHealthConnectPermissions,
+                app.container.weeklyCommitmentRepository,
+                app.container.weeklyReviewRepository,
+                app.container.settingsRepository
             )
         }
     })
@@ -60,6 +63,15 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
             )
         }
+
+        val unseenReview by viewModel.unseenWeeklyReview.collectAsState()
+        unseenReview?.let { WeeklyReviewCard(it, onDismiss = viewModel::dismissWeeklyReview) }
+
+        val weeklyState by viewModel.weeklyCommitmentState.collectAsState()
+        weeklyState?.let { WeeklyCommitmentCard(it) }
+
+        val motivationLine by viewModel.motivationLine.collectAsState()
+        motivationLine?.let { MotivationCard(it) }
 
         Text("Weight (7-day average)", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
         WeightSparkline(points = series.takeLast(30))

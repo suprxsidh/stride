@@ -5,16 +5,29 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suprxsidh.deficit.data.calc.DayBoundary
+import com.suprxsidh.deficit.data.calc.FloorState
+import com.suprxsidh.deficit.data.calc.MotivationCategory
+import com.suprxsidh.deficit.data.calc.MotivationInputs
+import com.suprxsidh.deficit.data.calc.MotivationLine
 import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.deficit.data.db.entity.UserProfileEntity
+import com.suprxsidh.deficit.data.db.entity.WeeklyReviewEntity
 import com.suprxsidh.deficit.data.repository.FoodRepository
 import com.suprxsidh.deficit.data.repository.HealthConnectRepository
+import com.suprxsidh.deficit.data.repository.SettingsRepository
 import com.suprxsidh.deficit.data.repository.UserProfileRepository
+import com.suprxsidh.deficit.data.repository.WeeklyCommitmentRepository
+import com.suprxsidh.deficit.data.repository.WeeklyCommitmentState
+import com.suprxsidh.deficit.data.repository.WeeklyReviewRepository
 import com.suprxsidh.deficit.data.repository.WeightRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -22,13 +35,17 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel(
     foodRepository: FoodRepository,
     userProfileRepository: UserProfileRepository,
-    weightRepository: WeightRepository,
+    private val weightRepository: WeightRepository,
     private val healthConnectRepository: HealthConnectRepository?,
     private val healthConnectAvailability: Int,
     private val hasHealthConnectPermissions: suspend () -> Boolean,
+    private val weeklyCommitmentRepository: WeeklyCommitmentRepository,
+    private val weeklyReviewRepository: WeeklyReviewRepository,
+    private val settingsRepository: SettingsRepository,
     private val clock: () -> LocalDateTime = { LocalDateTime.now() }
 ) : ViewModel() {
 
@@ -49,6 +66,18 @@ class DashboardViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val weeklyCommitmentState: StateFlow<WeeklyCommitmentState?> =
+        settingsRepository.observeWeeklyRunTarget()
+            .combine(settingsRepository.observeWeeklyRunFloor()) { target, floor -> target to floor }
+            .flatMapLatest { (target, floor) -> weeklyCommitmentRepository.observeCurrentWeekState(target, floor) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _motivationLine = MutableStateFlow<String?>(null)
+    val motivationLine: StateFlow<String?> = _motivationLine.asStateFlow()
+
+    private val _unseenWeeklyReview = MutableStateFlow<WeeklyReviewEntity?>(null)
+    val unseenWeeklyReview: StateFlow<WeeklyReviewEntity?> = _unseenWeeklyReview.asStateFlow()
+
     private val _healthConnectStatus = MutableStateFlow(HealthConnectStatus.UNAVAILABLE)
     val healthConnectStatus: StateFlow<HealthConnectStatus> = _healthConnectStatus.asStateFlow()
 
@@ -66,6 +95,51 @@ class DashboardViewModel(
                 Log.w("DashboardViewModel", "Failed to read Health Connect permission state", e)
                 HealthConnectStatus.PERMISSIONS_NEEDED
             }
+        }
+
+        viewModelScope.launch {
+            try {
+                weeklyReviewRepository.generateForCompletedWeekIfDue()
+                _unseenWeeklyReview.value = weeklyReviewRepository.unseenReview()
+            } catch (e: Exception) {
+                // A DB or clock hiccup here must not block the rest of the dashboard from loading.
+                Log.w("DashboardViewModel", "Failed to generate or check the weekly review", e)
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                val target = settingsRepository.observeWeeklyRunTarget().first()
+                val floor = settingsRepository.observeWeeklyRunFloor().first()
+                val state = weeklyCommitmentRepository.observeCurrentWeekState(target, floor).first()
+                val streak = weeklyCommitmentRepository.consecutiveFloorIntactStreakWeeks(target, floor)
+                val totalRuns = weeklyCommitmentRepository.totalRunDaysAllTime()
+                val weightChange = weightRepository.observeTotalChangeSinceStart().first()
+                val previousCategory = settingsRepository.getLastMotivationCategory()
+                    ?.let { runCatching { MotivationCategory.valueOf(it) }.getOrNull() }
+
+                val inputs = MotivationInputs(
+                    floorAtRisk = state.floorState != FloorState.OK,
+                    runsThisWeek = state.runsThisWeek,
+                    weeklyTarget = state.target,
+                    daysLeftInclusive = state.daysLeftInclusive,
+                    floorIntactStreakWeeks = streak,
+                    rollingWeightChangeKg = weightChange,
+                    totalRunsLogged = totalRuns
+                )
+                val (category, line) = MotivationLine.dailyLine(inputs, previousCategory)
+                settingsRepository.setLastMotivationCategory(category.name)
+                _motivationLine.value = line
+            } catch (e: Exception) {
+                Log.w("DashboardViewModel", "Failed to compute the motivation line", e)
+            }
+        }
+    }
+
+    fun dismissWeeklyReview() {
+        viewModelScope.launch {
+            _unseenWeeklyReview.value?.let { weeklyReviewRepository.markReviewSeen(it.weekStartDate) }
+            _unseenWeeklyReview.value = null
         }
     }
 }

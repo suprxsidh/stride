@@ -54,15 +54,27 @@ class DashboardViewModelTest {
         clock: () -> LocalDateTime = { LocalDateTime.of(2026, 8, 10, 12, 0) },
         healthConnectAvailability: Int = HealthConnectClient.SDK_AVAILABLE,
         hasPermissions: suspend () -> Boolean = { true }
-    ): DashboardViewModel = DashboardViewModel(
-        FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = clock),
-        UserProfileRepository(db.userProfileDao(), db.weighInDao()),
-        WeightRepository(db.weighInDao()),
-        HealthConnectRepository(NoOpHealthDataSource(), db.exerciseSessionDao(), db.syncStateDao(), db.weighInDao(), clock),
-        healthConnectAvailability,
-        hasPermissions,
-        clock
-    )
+    ): DashboardViewModel {
+        val settingsRepository = com.suprxsidh.deficit.data.repository.SettingsRepository(db.appSettingsDao())
+        val weeklyCommitmentRepository = com.suprxsidh.deficit.data.repository.WeeklyCommitmentRepository(db.exerciseSessionDao(), clock)
+        val adaptiveBudgetRepository = com.suprxsidh.deficit.data.repository.AdaptiveBudgetRepository(db.userProfileDao(), db.weighInDao(), settingsRepository)
+        val weeklyReviewRepository = com.suprxsidh.deficit.data.repository.WeeklyReviewRepository(
+            db.weeklyReviewDao(), weeklyCommitmentRepository, adaptiveBudgetRepository,
+            db.foodEntryDao(), db.weighInDao(), db.userProfileDao(), settingsRepository, clock
+        )
+        return DashboardViewModel(
+            FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = clock),
+            UserProfileRepository(db.userProfileDao(), db.weighInDao()),
+            WeightRepository(db.weighInDao()),
+            HealthConnectRepository(NoOpHealthDataSource(), db.exerciseSessionDao(), db.syncStateDao(), db.weighInDao(), clock),
+            healthConnectAvailability,
+            hasPermissions,
+            weeklyCommitmentRepository,
+            weeklyReviewRepository,
+            settingsRepository,
+            clock
+        )
+    }
 
     @Before
     fun setUp() {
@@ -179,5 +191,52 @@ class DashboardViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
+    }
+
+    @Test
+    fun `weeklyCommitmentState reflects this week's run days against the default target and floor`() = runTest(testDispatcher) {
+        // 2026-08-10 is the Monday of the week the fixture clock sits in.
+        healthDao.insert(
+            ExerciseSessionEntity(
+                hcRecordId = "hc-1", date = "2026-08-10", exerciseType = "56", startTimeEpochMs = 1L,
+                durationMin = 30, distanceM = 5000.0, avgPaceSecPerKm = 360.0, avgHr = 150, maxHr = 170, kcalReal = 350, kcalCredited = 175
+            )
+        )
+        val viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 12, 0) })
+        backgroundScope.launch { viewModel.weeklyCommitmentState.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.weeklyCommitmentState.value
+        assertEquals(1, state?.runsThisWeek)
+        assertEquals(4, state?.target)
+        assertEquals(3, state?.floor)
+    }
+
+    @Test
+    fun `motivationLine is populated after load`() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 12, 0) })
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("0/4 runs this week · 7 days left.", viewModel.motivationLine.value)
+    }
+
+    @Test
+    fun `unseenWeeklyReview surfaces a freshly generated review, dismissing clears it`() = runTest(testDispatcher) {
+        db.userProfileDao().upsert(
+            com.suprxsidh.deficit.data.db.entity.UserProfileEntity(
+                heightCm = 178.0, weightKgAtStart = 80.0, age = 29, sex = Sex.MALE.name,
+                goalWeightKg = 70.0, softBudgetKcal = 1850, createdAt = 0L
+            )
+        )
+        // "Now" is Monday 2024-01-15 -> the week of 2024-01-08..14 just ended.
+        val viewModel = buildViewModel(clock = { LocalDateTime.of(2024, 1, 15, 8, 0) })
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val review = viewModel.unseenWeeklyReview.value
+        assertEquals("2024-01-08", review?.weekStartDate)
+
+        viewModel.dismissWeeklyReview()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNull(viewModel.unseenWeeklyReview.value)
     }
 }
