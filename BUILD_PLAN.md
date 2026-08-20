@@ -45,7 +45,7 @@ App renamed Deficit → Stride (cosmetic only, package stays `com.suprxsidh.defi
 
 **2026-08-13 session:** user sideloaded v1.0.1, slept, woke up — still zero Health Connect import. Root cause (found by static code read, no device available): the sync worker was only ever scheduled from `MainActivity.onCreate`, gated on permissions *already* being granted at that check. Onboarding's permission-grant step never scheduled it itself, so on a fresh install the worker never got enqueued until a full cold restart — which hadn't happened since the app was only backgrounded overnight. Diagnosed a fix (`OnboardingScreen.kt`'s permission-result callback calling `HealthConnectSyncWorker.schedulePeriodic`/`triggerOneOff` directly) but left it uncommitted; re-applied plus a second independent gap in the 2026-08-20 session below. Also diagnosed (not a bug): the motivation card's logic always produces a line — if it "isn't there," it's a plain default `Card` blending into the bland UI, not a crash. And clarified for the user: anterior-pelvic-tilt/posture routines were never built, that's SPEC §3.12/§3.13, still Phase 4 backlog, not a regression.
 
-**Redesign approved this session**, mockups-first via an HTML/CSS artifact (no image-gen tool available in this harness — default to that approach for any future mobile mockup work). Direction: bold & athletic, Oura/Whoop-inspired, pushed past generic-AI-dashboard defaults into a running/ledger-specific motif — hand-built seven-segment LED readout for the hero kcal number, punch-card consistency grid, ticket-stub day counter, mechanical odometer streak, checkpoint-flag progress indicators reused as nav icons. Scoped to 3 representative screens (dashboard, consistency, onboarding) rather than all 7, on the reasoning the rest inherit the resulting design system. Written up as a formal spec (`docs/superpowers/specs/2026-08-20-visual-redesign-spec.md`) and implemented in `worktree-redesign-v1` — see below.
+**Redesign approved this session**, mockups-first via an HTML/CSS artifact (no image-gen tool available in this harness — default to that approach for any future mobile mockup work). Direction: bold & athletic, Oura/Whoop-inspired, pushed past generic-AI-dashboard defaults into a running/ledger-specific motif — hand-built seven-segment LED readout for the hero kcal number, punch-card consistency grid, ticket-stub day counter, mechanical odometer streak, checkpoint-flag progress indicators reused as nav icons. Scoped to 3 representative screens (dashboard, consistency, onboarding) rather than all 7, on the reasoning the rest inherit the resulting design system. Written up as a formal spec (`docs/superpowers/specs/2026-08-20-visual-redesign-spec.md`) and implemented in `worktree-redesign-v1` — see below. Both this doc-only edit and the redesign approval note were uncommitted on master's working tree until 2026-08-20, when they were committed as their own small doc-only commit ahead of the HC bugfix merge below.
 
 ## HC sync-scheduling bugfix (2026-08-20, worktree `hc-import-bugfix`, branch `worktree-hc-import-bugfix`)
 User report: "that doesn't import from Samsung Health properly yet." Root-caused by reading the full HC integration end-to-end rather than guessing. Full writeup in `CLAUDE.md` under "Health Connect sync scheduling — root cause + fix". Short version:
@@ -55,9 +55,71 @@ User report: "that doesn't import from Samsung Health properly yet." Root-caused
 - **Verified still intact, not regressed:** independent exercise/weigh-in sync watermarks, and the 48h `SYNC_LOOKBACK` read-window widening for Samsung Health's 30-60min publish lag.
 - **Tests:** 199/199 unit tests pass (up from 195), including new Robolectric coverage for both scheduling fixes (`DashboardViewModelTest`, `HealthConnectSyncWorkerTest` using `WorkManagerTestInitHelper`). `./gradlew assembleDebug` succeeds.
 - **NOT confirmed — still needs the user's own on-device re-test:** whether this actually fixes the reported symptom (both fixes are scheduling-layer, found by static reading, with zero device confirmation that Samsung Health→Health Connect writes behave as the code assumes); the onboarding callback's 3-line wiring has no Compose-level test (no `createComposeRule` usage exists in this repo at all); WorkManager's 60-min periodic cadence actually surviving OriginOS's battery management. On next sideload: grant HC permission via BOTH the onboarding flow AND the dashboard's settings deep-link (they're two independent fixes now), background (don't kill) each time, and confirm a run/weigh-in actually shows up within ~60-90 min without a cold restart.
-- **Merged to master 2026-08-20** (rebased onto master's pending doc commit, then fast-forwarded); worktree/branch deleted. Pending the user's device re-test.
+- **Merged to master 2026-08-20** (rebased onto master's doc commit, then fast-forwarded); worktree/branch deleted.
+
+## Visual redesign — in progress in `worktree-redesign-v1` (2026-08-20)
+
+Full UI redesign approved 2026-08-13 (bold & athletic, Oura/Whoop-inspired, LED-readout/punch-card/
+ledger motif, single ember accent `#FF6A3D`, tabular-monospace numerals — see `CLAUDE.md`'s
+"Visual redesign" section for the full direction). The original HTML/CSS mockup artifact (3
+screens: dashboard, consistency, onboarding) is not saved anywhere accessible, so this session
+wrote a complete implementation spec from the approved-direction description first.
+
+Working in `.claude/worktrees/redesign-v1`, branch `worktree-redesign-v1`. Originally branched from
+master commit `bd0da81`; rebased onto master (post HC-bugfix-merge) on 2026-08-20 so it now sits on
+top of the sync-scheduling fix — the only real conflicts were import-block collisions in
+`DashboardScreen.kt`/`OnboardingScreen.kt` (both branches added imports to the same block; the HC
+fix's actual scheduling logic auto-merged cleanly and is intact) plus doc-file conflicts in this
+file and `CLAUDE.md` (resolved by keeping both sections). **Not yet merged to master — pending
+completion of the remaining screens below, then a whole-branch review before merge.** No on-device
+verification done yet — only `compileDebugKotlin`, `testDebugUnitTest`, and `assembleDebug`.
+
+**Completed this session (2026-08-20):**
+1. Spec doc: `docs/superpowers/specs/2026-08-20-visual-redesign-spec.md` — color tokens, type
+   scale (JetBrains Mono, bundled as `res/font/jetbrains_mono_*.ttf`, OFL-licensed), 4dp spacing
+   scale, corner-shape scale, and concrete designs/code for the three shared components
+   (`LedReadout`, `PunchCardRow`, `StartLineDivider`/`StartLineProgress`).
+2. Shared design system built: `Color.kt`, `Type.kt`, `Theme.kt` rewritten with the ember-on-black
+   palette + JetBrains Mono type scale; new `Shape.kt` (squared 2-8dp corners) and `Spacing.kt`
+   (4dp-base scale); three new composables in `ui/theme/component/` (`LedReadout.kt`,
+   `PunchCardRow.kt` with a custom notched `Shape`, `StartLine.kt`).
+3. Dashboard screen fully migrated: hero kcal stat → `LedReadout`, budget bar →
+   `StartLineProgress`, all cards (weekly review, weekly commitment, motivation, today's-run,
+   HC-permissions-needed, battery-optimization) → `PunchCardRow`. Floor-intact streak now has a
+   permanent home in the `LedReadout` trailing slot instead of only surfacing via the rotating
+   motivation line.
+4. Consistency screen fully migrated: month header uppercase + `StartLineDivider`, week-summary
+   line → `PunchCardRow`, day-cell dots recolored to `StridePositive`/`StrideOutline`.
+   `weekSummaryText`'s exact string format is untouched (covered by `ConsistencyScreenTest`).
+5. Onboarding screen fully migrated: all three steps (profile entry, HC setup, battery setup) get
+   uppercase `titleLarge` headers + `StartLineDivider`; swapped `headlineSmall` (not in the
+   redesign's type scale, was rendering in the default Material sans font) for `titleLarge`.
+6. After each screen: ran `./gradlew testDebugUnitTest` — 195/195 passing throughout, no
+   regressions. Also ran `assembleDebug` after each — clean throughout.
+
+**What's left (not started this session):**
+- Food logging, Weight, Settings, Health-Connect-setup screens — per spec §10, these should
+  *inherit* the design system (swap `Card`/`Divider`/`LinearProgressIndicator` for
+  `PunchCardRow`/`StartLineDivider`/`StartLineProgress`, numeric readouts for `LedReadout`), not
+  get bespoke layouts. Not attempted this session — ran out of scope/turns before reaching them.
+- Nav icons: spec §9 calls for a checkered-flag glyph on the *active* bottom-nav tab (reusing the
+  `StartLineTrack` drawing logic at icon scale) instead of a tinted stock Material icon. Designed
+  in the spec but not implemented — `MainActivity.kt`'s `NavigationBarItem` icons are untouched.
+- No on-device verification (explicitly out of scope for this session) — only JVM/Robolectric unit
+  tests and `assembleDebug` have run. The LED-readout glow-fake and the punch-card notch shape in
+  particular are worth eyeballing on the real device before merge — they were never rendered, only
+  compiled.
+- Do not merge `worktree-redesign-v1` to master without a whole-branch review first (this project's
+  established finishing-a-development-branch convention — cross-screen issues invisible to any
+  single screen's migration have caught real bugs in every prior phase here).
 
 ## Next 3 actions
-1. **Immediate:** sideload master's debug APK and re-test both HC permission-grant paths (onboarding + dashboard settings deep-link) per the checklist above — this is what determines whether the fix actually works, not just whether it compiles/unit-tests.
-2. Finish migrating the redesign (`worktree-redesign-v1`) across the remaining screens (Food logging, Weight, Settings, HC setup) + build the nav checkered-flag glyph, then merge to master and confirm the LED/punch-card visuals actually render as intended on-device (never yet visually verified, only compiled).
-3. Once both are device-confirmed, work through `TESTING.md`'s full manual checklist covering all prior phases' untested-on-device behavior, then decide whether any parked Minor items are worth a follow-up pass and scope Phase 4 from the remaining deferred backlog: notifications, Glance home-screen widget, guided routines, backup/export, full persistent setup checklist (§4.6).
+1. Continue the redesign in `worktree-redesign-v1`: migrate Food logging, Weight, Settings, and
+   Health-Connect-setup per the inheritance rule in spec §10, then build the nav-icon flag glyph
+   (spec §9). Run the full test suite after each screen.
+2. Whole-branch review across all 7 migrated screens for cross-screen issues (missing scroll,
+   inconsistent motif application, forgotten spec-mandated elements), then merge to master.
+3. Sideload master's debug APK and actually look at the LED-readout glow fake, punch-card notches,
+   and nav-flag glyph on the Vivo X200T — nothing in this redesign has been rendered on a real
+   screen yet, only compiled — alongside re-testing both HC permission-grant paths from the
+   sync-scheduling fix above.

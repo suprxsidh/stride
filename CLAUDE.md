@@ -8,9 +8,6 @@ Personal Android weight-loss tracker. Single user (Suprasidh), sideloaded debug 
 - Execution mode: superpowers:subagent-driven-development, in this repo (git-initialized 2026-08-10).
 - Portfolio-level conventions from `~/claudecode-projects/CLAUDE.md` apply (push destination, plan→approval→PoC→verify→scale flow, etc.).
 
-## Visual design direction (locked in 2026-08-13)
-Full UI redesign approved: bold & athletic, Oura/Whoop-inspired dark theme, pushed into a running/ledger-specific motif (seven-segment LED readout, punch-card grid, ticket-stub/checkpoint-flag/odometer language) rather than a generic dark-dashboard look. Mockups (3 representative screens: dashboard, consistency, onboarding) live as an HTML/CSS artifact, not committed to the repo — reference the conversation that produced them, or rebuild from this description, before starting Compose implementation. No image-generation tool is available in this harness; default to an HTML/CSS artifact mockup for any future mobile visual-direction work instead of the `imagegen-frontend-*` skills.
-
 ## Local toolchain (2026-08-10)
 No system-default `java`/`ANDROID_HOME` on this machine — both are present via Homebrew but unlinked. Every implementer/reviewer subagent MUST use these, not system defaults:
 - `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home` (OpenJDK 21.0.11)
@@ -40,3 +37,30 @@ User report: "that doesn't import from Samsung Health properly yet." Investigate
 - The Onboarding permission-callback fix has **no Compose-level test** — no `createComposeRule` usage exists anywhere in this repo's test suite, so the 3-line grant-callback wiring in `OnboardingScreen.kt` is code-reviewed only, not unit-tested. Low risk given its size, but flagging per the "don't claim more than tested" rule.
 - Whether the *first* real sync after granting permission actually surfaces exercise sessions/weigh-ins that Samsung Health already logged — the 30-day `FIRST_SYNC_LOOKBACK_DAYS` floor and 48h lookback widening are logic-verified, not device-verified.
 - **On-device checklist for next sideload:** grant HC permission via onboarding AND separately via the dashboard's "Open Health Connect settings" deep-link (both paths, since they're now two independent fixes) → background (don't kill) the app each time → confirm a run/weigh-in actually appears within ~60-90 min without a cold restart. Pull `adb logcat | grep -i health` if it still doesn't.
+- **Merged to master 2026-08-20** (rebased onto master, then fast-forwarded). This entry stays as the historical record.
+
+## Visual redesign (approved 2026-08-13, implementation started 2026-08-20)
+
+Full UI redesign approved: bold & athletic, Oura/Whoop-inspired dark theme (single ember accent
+`#FF6A3D`, tabular-monospace numerals, "data as hero" layouts), pushed into a running/ledger-
+specific motif — LED-readout stat displays, punch-card/ledger list rows, a shared "start line"
+checkered-flag divider/progress motif, nav icons reusing the flag/punch-card language. Mockups (3
+screens: dashboard, consistency, onboarding) existed only as an HTML/CSS artifact from a
+brainstorming session, never committed to the repo and not retrievable afterward — so a full
+written spec was produced from memory before any Compose work started.
+
+**Being built in `.claude/worktrees/redesign-v1` (branch `worktree-redesign-v1`), NOT on master.**
+Do not merge without explicit user review — see `BUILD_PLAN.md`'s redesign section for exact
+status (which screens are migrated, what's left).
+
+- Spec of record for the redesign: `docs/superpowers/specs/2026-08-20-visual-redesign-spec.md`
+  (worktree-only until merged) — concrete color/type/spacing/shape tokens plus the three
+  reusable composables (`LedReadout`, `PunchCardRow`, `StartLineDivider`/`StartLineProgress` in
+  `ui/theme/component/`). Treat this as the source of truth for anything redesign-related;
+  don't re-derive from the (unrecoverable) original mockup.
+- Font: JetBrains Mono (OFL), bundled at `app/src/main/res/font/jetbrains_mono_*.ttf` — chosen
+  over Compose's Downloadable Fonts API specifically because that API needs Google Play Services
+  network access, which would violate the "only OFF/Gemini network calls" constraint above.
+- Only Dashboard, Consistency, and Onboarding were mocked directly — Food logging, Weight,
+  Settings, and Health-Connect-setup are meant to inherit the resulting design system as-is, not
+  get bespoke treatment. See spec §10 for the exact inheritance rule before touching those four.
