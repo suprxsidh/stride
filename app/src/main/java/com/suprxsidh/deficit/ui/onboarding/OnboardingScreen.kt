@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.suprxsidh.deficit.DeficitApp
 import com.suprxsidh.deficit.data.calc.Sex
 import com.suprxsidh.deficit.health.HealthConnectManager
+import com.suprxsidh.deficit.health.HealthConnectSyncWorker
 import kotlinx.coroutines.launch
 
 /** Steps in the onboarding flow, shown in order. */
@@ -63,6 +64,15 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 HealthConnectManager.requestPermissionsContract()
             ) { granted ->
                 viewModel.onHealthConnectPermissionsResult(granted)
+                // The sync worker was previously only ever scheduled from MainActivity.onCreate,
+                // gated on permissions already being granted at that exact moment -- so granting
+                // permission here never actually enqueued the worker until the app was fully
+                // killed and cold-started again (a real, previously-shipped bug). Schedule
+                // directly from the grant callback so sync starts immediately on this path too.
+                if (granted.containsAll(HealthConnectManager.REQUIRED_PERMISSIONS)) {
+                    HealthConnectSyncWorker.schedulePeriodic(app)
+                    HealthConnectSyncWorker.triggerOneOff(app)
+                }
             }
             HealthConnectSetupStep(
                 permissionsGranted = permissionsGranted,

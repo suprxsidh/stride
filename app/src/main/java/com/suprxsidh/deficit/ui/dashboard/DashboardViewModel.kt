@@ -47,7 +47,16 @@ class DashboardViewModel(
     private val weeklyCommitmentRepository: WeeklyCommitmentRepository,
     private val weeklyReviewRepository: WeeklyReviewRepository,
     private val settingsRepository: SettingsRepository,
-    private val clock: () -> LocalDateTime = { LocalDateTime.now() }
+    private val clock: () -> LocalDateTime = { LocalDateTime.now() },
+    // Health Connect permission can be granted from OUTSIDE the app: the dashboard's
+    // "Open Health Connect settings" button (see DashboardScreen) deep-links to the system
+    // Health Connect app, and the user grants there then returns without killing Stride.
+    // The sync worker is otherwise only ever scheduled from onboarding's permission-grant
+    // callback or a cold MainActivity.onCreate start -- neither of which runs on this path --
+    // so without this hook, granting permission via the settings deep link silently never
+    // starts sync until the process is fully killed and cold-started again. Same root cause
+    // as the onboarding scheduling bug, different trigger site.
+    private val scheduleHealthConnectSync: () -> Unit = {}
 ) : ViewModel() {
 
     val profile: StateFlow<UserProfileEntity?> =
@@ -102,7 +111,8 @@ class DashboardViewModel(
     fun refreshDeviceStatuses() {
         _batteryOptimizationIgnored.value = isIgnoringBatteryOptimizations()
         viewModelScope.launch {
-            _healthConnectStatus.value = try {
+            val previousStatus = _healthConnectStatus.value
+            val newStatus = try {
                 when {
                     healthConnectAvailability != HealthConnectClient.SDK_AVAILABLE -> HealthConnectStatus.UNAVAILABLE
                     !hasHealthConnectPermissions() -> HealthConnectStatus.PERMISSIONS_NEEDED
@@ -113,6 +123,15 @@ class DashboardViewModel(
                 // Fall back to the "needs attention" state rather than crashing the dashboard.
                 Log.w("DashboardViewModel", "Failed to read Health Connect permission state", e)
                 HealthConnectStatus.PERMISSIONS_NEEDED
+            }
+            _healthConnectStatus.value = newStatus
+
+            // Only fire on the transition INTO OK, not on every resume/refresh while already OK --
+            // schedulePeriodic is idempotent (KEEP policy) but triggerOneOff REPLACEs the in-flight
+            // one-off request, so calling it on every foreground would keep restarting sync and it
+            // could never finish if resumes happen faster than a sync cycle.
+            if (newStatus == HealthConnectStatus.OK && previousStatus != HealthConnectStatus.OK) {
+                scheduleHealthConnectSync()
             }
         }
     }

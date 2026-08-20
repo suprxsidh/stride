@@ -26,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.suprxsidh.deficit.DeficitApp
+import com.suprxsidh.deficit.health.HealthConnectSyncWorker
 import java.time.LocalDate
 
 @Composable
@@ -43,7 +44,11 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 { com.suprxsidh.deficit.system.BatteryOptimization.isIgnoringBatteryOptimizations(app) },
                 app.container.weeklyCommitmentRepository,
                 app.container.weeklyReviewRepository,
-                app.container.settingsRepository
+                app.container.settingsRepository,
+                scheduleHealthConnectSync = {
+                    HealthConnectSyncWorker.schedulePeriodic(app)
+                    HealthConnectSyncWorker.triggerOneOff(app)
+                }
             )
         }
     })
