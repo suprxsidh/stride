@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +31,12 @@ import com.suprxsidh.deficit.data.calc.WeekBoundary
 import com.suprxsidh.deficit.data.calc.WeekOutcome
 import com.suprxsidh.deficit.data.repository.DayConsistency
 import com.suprxsidh.deficit.data.repository.WeekSummary
+import com.suprxsidh.deficit.ui.theme.Spacing
+import com.suprxsidh.deficit.ui.theme.StrideOnSurfaceMuted
+import com.suprxsidh.deficit.ui.theme.StrideOutline
+import com.suprxsidh.deficit.ui.theme.StridePositive
+import com.suprxsidh.deficit.ui.theme.component.PunchCardRow
+import com.suprxsidh.deficit.ui.theme.component.StartLineDivider
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -47,21 +52,31 @@ fun ConsistencyScreen() {
     val days by viewModel.days.collectAsState()
     val weeks by viewModel.weeks.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = viewModel::previousMonth) { Text("< Prev") }
-            Text("${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = viewModel::nextMonth) { Text("Next >") }
+    Column(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = viewModel::previousMonth) { Text("< PREV") }
+            Text(
+                "${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}".uppercase(),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            TextButton(onClick = viewModel::nextMonth) { Text("NEXT >") }
         }
-        Spacer(Modifier.height(16.dp))
+        StartLineDivider(modifier = Modifier.padding(vertical = Spacing.sm))
 
         val byWeekStart = days.groupBy { WeekBoundary.weekStart(it.date) }.toSortedMap()
         byWeekStart.forEach { (weekStart, weekDays) ->
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.xs)) {
                 val byDate = weekDays.associateBy { it.date }
                 for (offset in 0..6) {
                     val date = weekStart.plusDays(offset.toLong())
-                    Box(modifier = Modifier.weight(1f).aspectRatio(1f).padding(2.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.weight(1f).aspectRatio(1f).padding(Spacing.xxs),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         byDate[date]?.let { DayCell(it) }
                     }
                 }
@@ -74,12 +89,13 @@ fun ConsistencyScreen() {
             // muted "not enough data" line (via weekSummaryText below) rather than silently
             // showing nothing.
             val summary = weeks.firstOrNull { it.weekStart == weekStart }
-            Text(
-                weekSummaryText(summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (summary == null) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            PunchCardRow(modifier = Modifier.padding(bottom = Spacing.sm)) {
+                Text(
+                    weekSummaryText(summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (summary == null) StrideOnSurfaceMuted else Color.Unspecified,
+                )
+            }
         }
     }
 }
@@ -89,6 +105,9 @@ fun ConsistencyScreen() {
  * deficit ~X kcal"). Pure and Compose-free so it can be unit tested directly: no Robolectric
  * or Compose test harness required. Returns a "not enough data yet" placeholder when
  * [summary] is null — see the call site's comment for why a grid row can lack one.
+ *
+ * NOTE: exact string format is covered by ConsistencyScreenTest — do not change without
+ * updating that test.
  */
 internal fun weekSummaryText(summary: WeekSummary?): String {
     if (summary == null) return "Not enough data yet"
@@ -122,6 +141,6 @@ private fun Dot(active: Boolean) {
             .height(6.dp)
             .aspectRatio(1f)
             .clip(CircleShape)
-            .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+            .background(if (active) StridePositive else StrideOutline)
     )
 }
