@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -113,8 +115,10 @@ private fun ProfileEntryStep(
     onSubmitted: () -> Unit,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
+    // Whole-branch review finding: 5 fields + chips + button with no scroll wrapper can overflow
+    // a small screen once the keyboard is up -- every other screen in the app scrolls.
     Column(
-        modifier = Modifier.fillMaxSize().padding(Spacing.lg),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Text("A few numbers to start".uppercase(), style = MaterialTheme.typography.titleLarge)

@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
                                                     // tinted stock icon; inactive tabs keep the stock Material icon
                                                     // outline, recolored muted rather than the default tint.
                                                     if (selected) {
-                                                        NavFlagIcon()
+                                                        NavFlagIcon(contentDescription = destination.label)
                                                     } else {
                                                         Icon(destination.icon, contentDescription = destination.label, tint = StrideOnSurfaceMuted)
                                                     }

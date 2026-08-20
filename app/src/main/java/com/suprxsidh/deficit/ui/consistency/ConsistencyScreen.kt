@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,7 +54,12 @@ fun ConsistencyScreen() {
     val days by viewModel.days.collectAsState()
     val weeks by viewModel.weeks.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
+    // Whole-branch review finding: this screen had no scroll wrapper even though a month can
+    // render up to 6 week rows (day-grid + PunchCardRow summary each) -- a real overflow risk
+    // on shorter phones that no single screen's own migration review would have caught. Every
+    // other screen in the app already scrolls (Dashboard, Food log, Weight, Settings, Run
+    // history); this was the one exception.
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.md)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
