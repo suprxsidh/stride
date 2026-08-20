@@ -39,6 +39,8 @@ import com.suprxsidh.deficit.health.HealthConnectSyncWorker
 import com.suprxsidh.deficit.ui.nav.DeficitNavHost
 import com.suprxsidh.deficit.ui.nav.Routes
 import com.suprxsidh.deficit.ui.theme.DeficitTheme
+import com.suprxsidh.deficit.ui.theme.StrideOnSurfaceMuted
+import com.suprxsidh.deficit.ui.theme.component.NavFlagIcon
 import kotlinx.coroutines.launch
 
 private data class BottomDestination(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
@@ -102,7 +104,10 @@ class MainActivity : ComponentActivity() {
                             topBar = {
                                 if (showBottomBar) {
                                     TopAppBar(
-                                        title = { Text("Deficit") },
+                                        // App was renamed Deficit -> Stride (package stays com.suprxsidh.deficit) --
+                                        // this literal string was missed by that rename until the redesign pass
+                                        // touched this file; every other user-facing string already said Stride.
+                                        title = { Text("Stride") },
                                         actions = {
                                             IconButton(onClick = {
                                                 navController.navigate(Routes.SETTINGS) {
@@ -130,7 +135,16 @@ class MainActivity : ComponentActivity() {
                                                         restoreState = true
                                                     }
                                                 },
-                                                icon = { Icon(destination.icon, contentDescription = destination.label) },
+                                                icon = {
+                                                    // Spec §9: active tab gets the checkered-flag glyph instead of a
+                                                    // tinted stock icon; inactive tabs keep the stock Material icon
+                                                    // outline, recolored muted rather than the default tint.
+                                                    if (selected) {
+                                                        NavFlagIcon()
+                                                    } else {
+                                                        Icon(destination.icon, contentDescription = destination.label, tint = StrideOnSurfaceMuted)
+                                                    }
+                                                },
                                                 label = { Text(destination.label) }
                                             )
                                         }
