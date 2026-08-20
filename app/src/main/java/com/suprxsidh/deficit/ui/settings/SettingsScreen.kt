@@ -28,6 +28,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.suprxsidh.deficit.DeficitApp
+import com.suprxsidh.deficit.ui.theme.Spacing
+import com.suprxsidh.deficit.ui.theme.StrideOnSurfaceMuted
+import com.suprxsidh.deficit.ui.theme.component.StartLineDivider
 
 @Composable
 fun SettingsScreen() {
@@ -38,27 +41,30 @@ fun SettingsScreen() {
     val currentKey by viewModel.geminiApiKey.collectAsState()
     var input by remember(currentKey) { mutableStateOf(currentKey ?: "") }
 
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
-        Text("Gemini API key", style = MaterialTheme.typography.titleMedium)
-        Text("Used only for AI meal estimation. Stored on this device only, sent only to Google's Gemini API.")
-        Spacer(Modifier.height(12.dp))
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg)) {
+        Text("Settings".uppercase(), style = MaterialTheme.typography.titleLarge)
+        StartLineDivider(modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.sm))
+
+        Text("Gemini API key".uppercase(), style = MaterialTheme.typography.titleMedium)
+        Text("Used only for AI meal estimation. Stored on this device only, sent only to Google's Gemini API.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
+        Spacer(Modifier.height(Spacing.sm))
         OutlinedTextField(
             value = input,
             onValueChange = { input = it },
             label = { Text("API key") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Row {
             Button(onClick = { viewModel.saveGeminiApiKey(input) }) { Text("Save") }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.sm))
             OutlinedButton(onClick = { input = ""; viewModel.clearGeminiApiKey() }) { Text("Clear") }
         }
 
-        Spacer(Modifier.height(32.dp))
-        Text("Weekly run goal", style = MaterialTheme.typography.titleMedium)
-        Text("Target and hard floor for the Monday-Sunday week. Any run on any day counts equally.")
-        Spacer(Modifier.height(12.dp))
+        StartLineDivider(modifier = Modifier.padding(vertical = Spacing.lg))
+        Text("Weekly run goal".uppercase(), style = MaterialTheme.typography.titleMedium)
+        Text("Target and hard floor for the Monday-Sunday week. Any run on any day counts equally.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
+        Spacer(Modifier.height(Spacing.sm))
 
         val target by viewModel.weeklyRunTarget.collectAsState()
         val floor by viewModel.weeklyRunFloor.collectAsState()
@@ -70,22 +76,22 @@ fun SettingsScreen() {
                 value = targetInput, onValueChange = { targetInput = it },
                 label = { Text("Target") }, modifier = Modifier.weight(1f)
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.sm))
             OutlinedTextField(
                 value = floorInput, onValueChange = { floorInput = it },
                 label = { Text("Floor") }, modifier = Modifier.weight(1f)
             )
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Button(onClick = {
             targetInput.toIntOrNull()?.let { viewModel.saveWeeklyRunTarget(it) }
             floorInput.toIntOrNull()?.let { viewModel.saveWeeklyRunFloor(it) }
         }) { Text("Save weekly goal") }
 
-        Spacer(Modifier.height(32.dp))
-        Text("Calorie budget override", style = MaterialTheme.typography.titleMedium)
-        Text("Manually set the daily budget. Overrides the automatic weekly recompute until cleared.")
-        Spacer(Modifier.height(12.dp))
+        StartLineDivider(modifier = Modifier.padding(vertical = Spacing.lg))
+        Text("Calorie budget override".uppercase(), style = MaterialTheme.typography.titleMedium)
+        Text("Manually set the daily budget. Overrides the automatic weekly recompute until cleared.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
+        Spacer(Modifier.height(Spacing.sm))
 
         val override by viewModel.manualBudgetOverrideKcal.collectAsState()
         var overrideInput by remember(override) { mutableStateOf(override?.toString() ?: "") }
@@ -94,12 +100,12 @@ fun SettingsScreen() {
             value = overrideInput, onValueChange = { overrideInput = it },
             label = { Text("Daily budget (kcal)") }, modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.sm))
         Row {
             Button(onClick = { overrideInput.toIntOrNull()?.let { viewModel.saveManualBudgetOverride(it) } }) {
                 Text("Save override")
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.sm))
             OutlinedButton(onClick = {
                 viewModel.clearManualBudgetOverride()
                 overrideInput = ""
