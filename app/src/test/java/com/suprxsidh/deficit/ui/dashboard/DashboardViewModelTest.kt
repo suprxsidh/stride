@@ -54,7 +54,8 @@ class DashboardViewModelTest {
         clock: () -> LocalDateTime = { LocalDateTime.of(2026, 8, 10, 12, 0) },
         healthConnectAvailability: Int = HealthConnectClient.SDK_AVAILABLE,
         hasPermissions: suspend () -> Boolean = { true },
-        isIgnoringBatteryOptimizations: () -> Boolean = { false }
+        isIgnoringBatteryOptimizations: () -> Boolean = { false },
+        scheduleHealthConnectSync: () -> Unit = {}
     ): DashboardViewModel {
         val settingsRepository = com.suprxsidh.deficit.data.repository.SettingsRepository(db.appSettingsDao())
         val weeklyCommitmentRepository = com.suprxsidh.deficit.data.repository.WeeklyCommitmentRepository(db.exerciseSessionDao(), clock)
@@ -74,7 +75,8 @@ class DashboardViewModelTest {
             weeklyCommitmentRepository,
             weeklyReviewRepository,
             settingsRepository,
-            clock
+            clock,
+            scheduleHealthConnectSync
         )
     }
 
@@ -338,5 +340,62 @@ class DashboardViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals("1 runs logged since you started.", dayTwo.motivationLine.value)
+    }
+
+    // Regression test for a real bug: Health Connect permission can be granted OUTSIDE the app
+    // via the dashboard's "Open Health Connect settings" deep link. The user can then return to
+    // Stride by backgrounding (not killing) it, so ON_RESUME -> refreshDeviceStatuses() is the
+    // ONLY place that ever learns about the grant on this path. Before this fix, that method
+    // updated the status banner to OK but never scheduled the sync worker, so sync silently
+    // never started until a full process kill + cold start.
+    @Test
+    fun `refreshDeviceStatuses schedules HC sync on the transition into OK`() = runTest(testDispatcher) {
+        var scheduleCalls = 0
+        var permissionsGranted = false
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            hasPermissions = { permissionsGranted },
+            scheduleHealthConnectSync = { scheduleCalls++ }
+        )
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Cold start / init with permission NOT yet granted: must not schedule.
+        assertEquals(HealthConnectStatus.PERMISSIONS_NEEDED, viewModel.healthConnectStatus.value)
+        assertEquals(0, scheduleCalls)
+
+        // Simulates the user granting permission via the system Health Connect settings deep
+        // link, then resuming the app (which calls refreshDeviceStatuses()).
+        permissionsGranted = true
+        viewModel.refreshDeviceStatuses()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
+        assertEquals(1, scheduleCalls)
+
+        // A further resume/refresh while already OK must NOT re-trigger -- triggerOneOff's
+        // REPLACE policy would otherwise restart the one-off sync on every foreground.
+        viewModel.refreshDeviceStatuses()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, scheduleCalls)
+    }
+
+    @Test
+    fun `refreshDeviceStatuses does not schedule HC sync when permission is already OK at init`() = runTest(testDispatcher) {
+        var scheduleCalls = 0
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            hasPermissions = { true },
+            scheduleHealthConnectSync = { scheduleCalls++ }
+        )
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Cold start with permission ALREADY granted (e.g. re-launch after a prior successful
+        // grant) is itself a transition from the default UNAVAILABLE state into OK, so this
+        // doubles as a safety net for the cold-start scheduling path too.
+        assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
+        assertEquals(1, scheduleCalls)
     }
 }
