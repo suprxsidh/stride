@@ -58,3 +58,60 @@ Added by the final whole-branch review fix wave: independent exercise/weigh-in s
 - No backup/export/restore.
 - No weekly commitment/motivation system, consistency grid, or weekly review.
 - No in-app UI for reviewing/dismissing a Gemini pending draft list beyond the single-draft "Retry now" / "Just quick-add it" banner (multiple simultaneous drafts are stored and retried correctly, but only the oldest draft's id is offered to the "Just quick-add it" dialog at a time).
+
+## Health Connect sync-scheduling fix (2026-08-20) — manual checks
+
+Two independent scheduling gaps were fixed this session (see `BUILD_PLAN.md`/`CLAUDE.md` for the
+full root-cause writeup): onboarding's permission-grant callback never scheduled the sync worker,
+and separately the dashboard's "Open Health Connect settings" deep-link re-grant path updated the
+status banner without scheduling the worker either. Both are now code-reviewed and unit-tested
+(Robolectric/WorkManager-test-only) but **never confirmed against a real device or real Samsung
+Health data**. On next sideload:
+
+1. **Fresh install, onboarding grant path**: fresh install → grant Health Connect permission during
+   onboarding → background the app (do NOT force-kill it) → confirm a run or weigh-in already in
+   Health Connect/Samsung Health appears within ~60-90 minutes without a cold restart.
+2. **Existing install, dashboard settings deep-link path**: with the app already past onboarding
+   and HC permission previously denied/revoked, tap the dashboard's "Open Health Connect settings"
+   banner button → grant permission in the system HC settings screen → return to Stride by
+   backgrounding (not killing) it → confirm the banner clears to OK AND a run/weigh-in actually
+   syncs within the same ~60-90 minute window. This path is the one most likely to have been the
+   user's originally reported symptom (backgrounding rather than killing is what the prior session's
+   history recorded).
+3. **`adb logcat | grep -i health`** if sync still silently doesn't happen on either path — the fix
+   is scheduling-layer only; it does not change anything about whether Samsung Health actually
+   writes into Health Connect on this device, or whether WorkManager's periodic work survives
+   OriginOS's battery management.
+
+## Visual redesign (2026-08-20) — manual checks, NEVER done at any point
+
+The full bold-athletic/LED-readout/punch-card redesign (spec:
+`docs/superpowers/specs/2026-08-20-visual-redesign-spec.md`) has only ever been compiled
+(`compileDebugKotlin`, `assembleDebug`) and exercised by JVM/Robolectric unit tests — **it has
+never been rendered on a real screen**. This is the single biggest untested-on-device surface in
+the app right now. On next sideload, check all 7 screens (Dashboard, Consistency, Onboarding, Food
+logging, Weight, Settings, Run history) plus the bottom nav:
+
+1. **LED-readout glow-fake**: the hero kcal number (Dashboard), streak counter (weekly-commitment
+   card), food-log daily total, and weight total-change stat should all render as a recessed black
+   bezel with a glowing ember seven-segment-style number — confirm the "glow" (a 10%-alpha
+   `StrideEmberGlow` layer) is actually visible against the near-black `StrideSurfaceSunken`
+   background and not lost to display gamma/brightness.
+2. **Punch-card notch shape**: list rows (weekly review/commitment/motivation cards, run-summary
+   rows, Consistency's week-summary lines, Food log's search/custom-food/logged-today rows,
+   Run history's per-run rows) should show visible semicircular notches punched into the left/right
+   edges at vertical center — confirm the notch actually reads as a cutout and isn't invisible at
+   real screen density, and that text never collides with the punched-out curve.
+3. **Nav-icon checkered-flag glyph**: the active bottom-nav tab should show a small 4x4
+   ember/dim checkerboard instead of a tinted stock Material icon; inactive tabs should show the
+   stock icon outline in a muted grey. Confirm this is legible at the actual nav-bar icon size on
+   device (never rendered at real size, only compiled).
+4. **Scroll on every screen**: Dashboard, Consistency, Onboarding's profile-entry step, Food
+   logging, Weight, Settings, and Run history should all scroll if content overflows — Consistency
+   and the onboarding profile step had this added during this session's whole-branch review
+   specifically because they didn't have it before; confirm neither clips content on the actual
+   device screen size.
+5. **JetBrains Mono rendering**: confirm the bundled font actually loads and renders (tabular
+   figures, monospace body text) rather than silently falling back to the system sans font — this
+   would be indistinguishable from a successful build if the font resource failed to bind at
+   runtime.
