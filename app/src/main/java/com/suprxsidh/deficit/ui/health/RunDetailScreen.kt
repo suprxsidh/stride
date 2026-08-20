@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -25,8 +24,16 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.suprxsidh.deficit.DeficitApp
 import com.suprxsidh.deficit.data.db.entity.ExerciseSessionEntity
+import com.suprxsidh.deficit.ui.theme.Spacing
+import com.suprxsidh.deficit.ui.theme.StrideOnSurfaceMuted
+import com.suprxsidh.deficit.ui.theme.component.PunchCardRow
+import com.suprxsidh.deficit.ui.theme.component.StartLineDivider
 import java.time.LocalDate
 
+// Not individually named in the redesign spec's migration list (spec omits it entirely), but
+// it's a real 7th screen in this app and the spec's own §10 point 4 explicitly lists "a run's
+// pace" as a standalone-numeric-readout example -- so it inherits the same design system as
+// Food/Weight/Settings rather than staying the one screen left in default Material style.
 @Composable
 fun RunDetailScreen() {
     val app = LocalContext.current.applicationContext as DeficitApp
@@ -36,14 +43,14 @@ fun RunDetailScreen() {
     val sessions by viewModel.sessions.collectAsState()
     val paceTrend by viewModel.paceTrend.collectAsState()
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        item { Text("Run history", style = MaterialTheme.typography.titleLarge) }
-        item { Spacer(Modifier.height(16.dp)) }
-        item { Text("Pace trend", style = MaterialTheme.typography.titleMedium) }
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(Spacing.md)) {
+        item { Text("Run history".uppercase(), style = MaterialTheme.typography.titleLarge) }
+        item { StartLineDivider(modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.sm)) }
+        item { Text("Pace trend".uppercase(), style = MaterialTheme.typography.titleMedium) }
         item { PaceTrendChart(paceTrend, modifier = Modifier.fillMaxWidth().height(120.dp)) }
-        item { Spacer(Modifier.height(16.dp)) }
+        item { Spacer(Modifier.height(Spacing.lg)) }
         if (sessions.isEmpty()) {
-            item { Text("No runs synced yet.") }
+            item { Text("No runs synced yet.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted) }
         } else {
             items(sessions) { session -> RunRow(session) }
         }
@@ -52,20 +59,28 @@ fun RunDetailScreen() {
 
 @Composable
 private fun RunRow(session: ExerciseSessionEntity) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(session.date, style = MaterialTheme.typography.titleSmall)
-        Text("${session.durationMin} min" + (session.distanceM?.let { " · %.1f km".format(it / 1000.0) } ?: ""))
-        Text(listOfNotNull(
-            session.avgHr?.let { "avg HR $it" },
-            session.maxHr?.let { "max HR $it" }
-        ).joinToString(" · "))
+    PunchCardRow(modifier = Modifier.padding(vertical = Spacing.xxs)) {
+        Column {
+            Text(session.date.uppercase(), style = MaterialTheme.typography.titleMedium)
+            Text(
+                "${session.durationMin} min" + (session.distanceM?.let { " · %.1f km".format(it / 1000.0) } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            val hrLine = listOfNotNull(
+                session.avgHr?.let { "avg HR $it" },
+                session.maxHr?.let { "max HR $it" }
+            ).joinToString(" · ")
+            if (hrLine.isNotEmpty()) {
+                Text(hrLine, style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
+            }
+        }
     }
 }
 
 @Composable
 private fun PaceTrendChart(points: List<Pair<LocalDate, Double>>, modifier: Modifier = Modifier) {
     if (points.size < 2) {
-        Text("Log a few more runs to see a pace trend.")
+        Text("Log a few more runs to see a pace trend.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
         return
     }
     val accent = MaterialTheme.colorScheme.primary
