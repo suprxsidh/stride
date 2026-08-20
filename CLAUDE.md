@@ -39,9 +39,9 @@ User report: "that doesn't import from Samsung Health properly yet." Investigate
 - **On-device checklist for next sideload:** grant HC permission via onboarding AND separately via the dashboard's "Open Health Connect settings" deep-link (both paths, since they're now two independent fixes) → background (don't kill) the app each time → confirm a run/weigh-in actually appears within ~60-90 min without a cold restart. Pull `adb logcat | grep -i health` if it still doesn't.
 - **Merged to master 2026-08-20** (rebased onto master, then fast-forwarded). This entry stays as the historical record.
 
-## Visual redesign (approved 2026-08-13, implementation started 2026-08-20)
+## Visual redesign: COMPLETE and merged to master (approved 2026-08-13, built 2026-08-20)
 
-Full UI redesign approved: bold & athletic, Oura/Whoop-inspired dark theme (single ember accent
+Full UI redesign: bold & athletic, Oura/Whoop-inspired dark theme (single ember accent
 `#FF6A3D`, tabular-monospace numerals, "data as hero" layouts), pushed into a running/ledger-
 specific motif — LED-readout stat displays, punch-card/ledger list rows, a shared "start line"
 checkered-flag divider/progress motif, nav icons reusing the flag/punch-card language. Mockups (3
@@ -49,18 +49,29 @@ screens: dashboard, consistency, onboarding) existed only as an HTML/CSS artifac
 brainstorming session, never committed to the repo and not retrievable afterward — so a full
 written spec was produced from memory before any Compose work started.
 
-**Being built in `.claude/worktrees/redesign-v1` (branch `worktree-redesign-v1`), NOT on master.**
-Do not merge without explicit user review — see `BUILD_PLAN.md`'s redesign section for exact
-status (which screens are migrated, what's left).
+Built in `.claude/worktrees/redesign-v1` (branch `worktree-redesign-v1`), rebased onto master
+after the HC sync-scheduling fix merged, then merged to master itself after a whole-branch review
+(this project's established finishing-a-development-branch convention) — worktree/branch deleted.
 
-- Spec of record for the redesign: `docs/superpowers/specs/2026-08-20-visual-redesign-spec.md`
-  (worktree-only until merged) — concrete color/type/spacing/shape tokens plus the three
-  reusable composables (`LedReadout`, `PunchCardRow`, `StartLineDivider`/`StartLineProgress` in
-  `ui/theme/component/`). Treat this as the source of truth for anything redesign-related;
-  don't re-derive from the (unrecoverable) original mockup.
+- Spec of record for the redesign: `docs/superpowers/specs/2026-08-20-visual-redesign-spec.md` —
+  concrete color/type/spacing/shape tokens plus the three reusable composables (`LedReadout`,
+  `PunchCardRow`, `StartLineDivider`/`StartLineProgress` in `ui/theme/component/`) plus the nav-icon
+  glyph (`NavFlagIcon`). Treat this as the source of truth for anything redesign-related; don't
+  re-derive from the (unrecoverable) original mockup.
 - Font: JetBrains Mono (OFL), bundled at `app/src/main/res/font/jetbrains_mono_*.ttf` — chosen
   over Compose's Downloadable Fonts API specifically because that API needs Google Play Services
   network access, which would violate the "only OFF/Gemini network calls" constraint above.
-- Only Dashboard, Consistency, and Onboarding were mocked directly — Food logging, Weight,
-  Settings, and Health-Connect-setup are meant to inherit the resulting design system as-is, not
-  get bespoke treatment. See spec §10 for the exact inheritance rule before touching those four.
+- Dashboard, Consistency, and Onboarding were mocked directly; Food logging, Weight, Settings, and
+  Run Detail (not named in the spec, but a real 7th screen — migrated too, per §10 point 4's own
+  "a run's pace" numeric-readout example) inherit the resulting design system per spec §10.
+  Health-Connect-setup is not a separate screen — it's the `HealthConnectSetupStep` composable
+  inside `OnboardingScreen.kt`, migrated along with the rest of onboarding.
+- Nav-icon checkered-flag glyph (spec §9): `NavFlagIcon` (4x4 StrideEmber/StrideEmberDim
+  checkerboard), shown for the active bottom-nav tab in `MainActivity.kt`; inactive tabs keep the
+  stock Material icon recolored `StrideOnSurfaceMuted`.
+- Whole-branch review caught two missing-scroll bugs invisible to any single screen's own
+  migration: `ConsistencyScreen` (a month can render up to 6 week rows) and Onboarding's
+  `ProfileEntryStep` (5 fields + chips + button) both had no scroll wrapper; both fixed.
+- **Never verified on a real device at any point** — the LED-readout glow-fake, punch-card notch
+  shape, and nav-flag glyph have only ever been compiled (`compileDebugKotlin`, `assembleDebug`),
+  never rendered on screen. This is the single biggest open risk on this whole redesign.
