@@ -4,47 +4,48 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
+// Stride visual redesign (2026-08-20) — ember-on-black, see spec §2.
 private val DeficitColorScheme = darkColorScheme(
-    // Primary palette (bright accent on black)
-    primary = DeficitAccent,
-    onPrimary = DeficitBlack,
-    primaryContainer = DeficitAccentDim,
-    onPrimaryContainer = DeficitOnBlack,
+    // Primary palette (ember accent on near-black)
+    primary = StrideEmber,
+    onPrimary = StrideSurfaceSunken,
+    primaryContainer = StrideEmberDim,
+    onPrimaryContainer = StrideOnSurface,
 
-    // Secondary palette (reuse accent-family for consistency)
-    secondary = DeficitAccentDim,
-    onSecondary = DeficitBlack,
-    secondaryContainer = DeficitSurfaceVariant,
-    onSecondaryContainer = DeficitAccent,
+    // Secondary palette (reuse ember-family for consistency — single-accent design)
+    secondary = StrideEmberDim,
+    onSecondary = StrideOnSurface,
+    secondaryContainer = StrideSurfaceRaised,
+    onSecondaryContainer = StrideEmber,
 
-    // Tertiary palette (reuse accent-family for consistency)
-    tertiary = DeficitAccentDim,
-    onTertiary = DeficitBlack,
-    tertiaryContainer = DeficitSurfaceVariant,
-    onTertiaryContainer = DeficitAccent,
+    // Tertiary palette (reuse ember-family for consistency)
+    tertiary = StrideEmberDim,
+    onTertiary = StrideOnSurface,
+    tertiaryContainer = StrideSurfaceRaised,
+    onTertiaryContainer = StrideEmber,
 
-    // Error palette (muted red on black)
-    error = DeficitError,
-    onError = DeficitBlack,
-    errorContainer = DeficitErrorDim,
-    onErrorContainer = DeficitOnBlack,
+    // Error palette (warm red, shifted near ember hue)
+    error = StrideError,
+    onError = StrideSurfaceSunken,
+    errorContainer = StrideSurfaceRaised,
+    onErrorContainer = StrideError,
 
-    // Background and surface (solid black family)
-    background = DeficitBlack,
-    onBackground = DeficitOnBlack,
-    surface = DeficitSurface,
-    onSurface = DeficitOnBlack,
-    surfaceVariant = DeficitSurfaceVariant,
-    onSurfaceVariant = DeficitOutlineVariant,
+    // Background and surface (near-black family)
+    background = StrideBackground,
+    onBackground = StrideOnSurface,
+    surface = StrideSurface,
+    onSurface = StrideOnSurface,
+    surfaceVariant = StrideSurfaceRaised,
+    onSurfaceVariant = StrideOnSurfaceMuted,
 
-    // Outline and border (muted gray)
-    outline = DeficitOutline,
-    outlineVariant = DeficitOutlineVariant,
+    // Outline and border
+    outline = StrideOutline,
+    outlineVariant = StrideOutline,
 
     // Inverse colors (for snackbars, etc.)
-    inverseSurface = DeficitInverseSurface,
-    inverseOnSurface = DeficitBlack,
-    inversePrimary = DeficitAccentDim
+    inverseSurface = StrideOnSurface,
+    inverseOnSurface = StrideSurfaceSunken,
+    inversePrimary = StrideEmberDim
 )
 
 @Composable
@@ -52,6 +53,7 @@ fun DeficitTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DeficitColorScheme,
         typography = DeficitTypography,
+        shapes = StrideShapes,
         content = content
     )
 }

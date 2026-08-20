@@ -2,17 +2,21 @@ package com.suprxsidh.deficit.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary palette
-val DeficitBlack = Color(0xFF000000)
-val DeficitAccent = Color(0xFF39FF88)
-val DeficitSurface = Color(0xFF121212)
-val DeficitOnBlack = Color(0xFFEAEAEA)
-val DeficitError = Color(0xFFCF6679)
+// Stride visual redesign (2026-08-20) — bold/athletic, LED-readout + punch-card ledger motif.
+// See docs/superpowers/specs/2026-08-20-visual-redesign-spec.md §2 for rationale.
 
-// Extended palette for full Material 3 color scheme
-val DeficitAccentDim = Color(0xFF1DB85C)  // Dimmer green for secondary/tertiary
-val DeficitSurfaceVariant = Color(0xFF1A1A1A)  // Slightly lighter than black surface
-val DeficitOutline = Color(0xFF79747E)  // Muted gray for outlines
-val DeficitOutlineVariant = Color(0xFF49454F)  // Darker muted gray
-val DeficitInverseSurface = Color(0xFFEAEAEA)  // Light inverse surface
-val DeficitErrorDim = Color(0xFF8B5A5E)  // Dimmer error for containers
+val StrideBackground = Color(0xFF0A0A0B)
+val StrideSurface = Color(0xFF141416)
+val StrideSurfaceRaised = Color(0xFF1C1C1F)
+val StrideSurfaceSunken = Color(0xFF000000)
+
+val StrideEmber = Color(0xFFFF6A3D)
+val StrideEmberDim = Color(0xFF7A3620)
+val StrideEmberGlow = Color(0x1AFF6A3D) // StrideEmber @ 10% alpha
+
+val StrideOnSurface = Color(0xFFF5F3F0)
+val StrideOnSurfaceMuted = Color(0xFF8A8A8E)
+val StrideOutline = Color(0xFF2A2A2E)
+
+val StrideError = Color(0xFFFF5C5C)
+val StridePositive = Color(0xFF4CAF7D)
