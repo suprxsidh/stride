@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -34,6 +33,10 @@ import com.suprxsidh.deficit.DeficitApp
 import com.suprxsidh.deficit.data.calc.Sex
 import com.suprxsidh.deficit.health.HealthConnectManager
 import com.suprxsidh.deficit.health.HealthConnectSyncWorker
+import com.suprxsidh.deficit.ui.theme.Spacing
+import com.suprxsidh.deficit.ui.theme.StrideOnSurfaceMuted
+import com.suprxsidh.deficit.ui.theme.StridePositive
+import com.suprxsidh.deficit.ui.theme.component.StartLineDivider
 import kotlinx.coroutines.launch
 
 /** Steps in the onboarding flow, shown in order. */
@@ -111,10 +114,11 @@ private fun ProfileEntryStep(
     scope: kotlinx.coroutines.CoroutineScope
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Text("A few numbers to start", style = MaterialTheme.typography.titleLarge)
+        Text("A few numbers to start".uppercase(), style = MaterialTheme.typography.titleLarge)
+        StartLineDivider()
 
         OutlinedTextField(
             value = viewModel.heightCm,
@@ -140,7 +144,7 @@ private fun ProfileEntryStep(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             FilterChip(selected = viewModel.sex == Sex.MALE, onClick = { viewModel.sex = Sex.MALE }, label = { Text("Male") })
             FilterChip(selected = viewModel.sex == Sex.FEMALE, onClick = { viewModel.sex = Sex.FEMALE }, label = { Text("Female") })
         }
@@ -156,7 +160,7 @@ private fun ProfileEntryStep(
         viewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Button(onClick = { scope.launch { viewModel.submit(onSubmitted) } }, modifier = Modifier.fillMaxWidth()) {
-            Text("Get started")
+            Text("Get started".uppercase(), style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -167,19 +171,30 @@ private fun HealthConnectSetupStep(
     onRequestPermissions: () -> Unit,
     onContinue: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(24.dp)) {
-        Text("Connect Health Connect", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(16.dp))
-        Text("1. Open Samsung Health → Settings → Data management → Health Connect sync, and turn it on.")
-        Text("2. Grant this app the Exercise, Calories, Distance, Heart Rate, and Weight permissions when prompted.")
-        Text("Sync can take 30–60 minutes after a run. Opening Samsung Health first speeds it up.")
-        Spacer(Modifier.height(24.dp))
+    Column(modifier = Modifier.padding(Spacing.lg)) {
+        Text("Connect Health Connect".uppercase(), style = MaterialTheme.typography.titleLarge)
+        StartLineDivider(modifier = Modifier.padding(top = Spacing.sm))
+        Spacer(Modifier.height(Spacing.md))
+        Text(
+            "1. Open Samsung Health → Settings → Data management → Health Connect sync, and turn it on.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "2. Grant this app the Exercise, Calories, Distance, Heart Rate, and Weight permissions when prompted.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "Sync can take 30–60 minutes after a run. Opening Samsung Health first speeds it up.",
+            style = MaterialTheme.typography.bodySmall,
+            color = StrideOnSurfaceMuted,
+        )
+        Spacer(Modifier.height(Spacing.lg))
         if (permissionsGranted) {
-            Text("Permissions granted ✓")
+            Text("Permissions granted ✓", color = StridePositive, style = MaterialTheme.typography.bodyLarge)
         } else {
             Button(onClick = onRequestPermissions) { Text("Grant Health Connect permissions") }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.md))
         TextButton(onClick = onContinue) { Text(if (permissionsGranted) "Continue" else "Skip for now") }
     }
 }
@@ -190,19 +205,23 @@ private fun BatteryOptimizationSetupStep(
     onOpenSettings: () -> Unit,
     onContinue: () -> Unit
 ) {
-    Column(modifier = Modifier.padding(24.dp)) {
-        Text("Protect background sync", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(16.dp))
-        Text("This phone's battery settings can silently stop Deficit from syncing runs and weight in the background.")
-        Text("1. Set Deficit's battery usage to unrestricted, or disable battery optimization for it.")
-        Text("2. In Vivo's i Manager, add Deficit to auto-start apps.")
-        Spacer(Modifier.height(24.dp))
+    Column(modifier = Modifier.padding(Spacing.lg)) {
+        Text("Protect background sync".uppercase(), style = MaterialTheme.typography.titleLarge)
+        StartLineDivider(modifier = Modifier.padding(top = Spacing.sm))
+        Spacer(Modifier.height(Spacing.md))
+        Text(
+            "This phone's battery settings can silently stop Deficit from syncing runs and weight in the background.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text("1. Set Deficit's battery usage to unrestricted, or disable battery optimization for it.", style = MaterialTheme.typography.bodyMedium)
+        Text("2. In Vivo's i Manager, add Deficit to auto-start apps.", style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(Spacing.lg))
         if (ignored) {
-            Text("Battery optimization disabled ✓")
+            Text("Battery optimization disabled ✓", color = StridePositive, style = MaterialTheme.typography.bodyLarge)
         } else {
             Button(onClick = onOpenSettings) { Text("Open battery settings") }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.md))
         TextButton(onClick = onContinue) { Text(if (ignored) "Continue" else "Skip for now") }
     }
 }
