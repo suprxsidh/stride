@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Launcher icon foreground — the same 4x4 checkerboard glyph as NavFlagIcon (see
+    ui/theme/component/NavFlagIcon.kt), alternating StrideEmber (#FF6A3D) / StrideEmberDim
+    (#7A3620), reused here so the launcher icon shares the app's own "start line" motif instead
+    of a generic/default icon. Sized to sit inside the adaptive-icon safe zone (the inner 66dp
+    circle of the 108dp canvas): a 48dp grid centered at (54,54), spanning 30..78 on both axes.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- row 0 (y 30-42) -->
+    <path android:fillColor="#FF6A3D" android:pathData="M30,30h12v12h-12z" />
+    <path android:fillColor="#7A3620" android:pathData="M42,30h12v12h-12z" />
+    <path android:fillColor="#FF6A3D" android:pathData="M54,30h12v12h-12z" />
+    <path android:fillColor="#7A3620" android:pathData="M66,30h12v12h-12z" />
+    <!-- row 1 (y 42-54) -->
+    <path android:fillColor="#7A3620" android:pathData="M30,42h12v12h-12z" />
+    <path android:fillColor="#FF6A3D" android:pathData="M42,42h12v12h-12z" />
+    <path android:fillColor="#7A3620" android:pathData="M54,42h12v12h-12z" />
+    <path android:fillColor="#FF6A3D" android:pathData="M66,42h12v12h-12z" />
+    <!-- row 2 (y 54-66) -->
+    <path android:fillColor="#FF6A3D" android:pathData="M30,54h12v12h-12z" />
+    <path android:fillColor="#7A3620" android:pathData="M42,54h12v12h-12z" />
+    <path android:fillColor="#FF6A3D" android:pathData="M54,54h12v12h-12z" />
+    <path android:fillColor="#7A3620" android:pathData="M66,54h12v12h-12z" />
+    <!-- row 3 (y 66-78) -->
+    <path android:fillColor="#7A3620" android:pathData="M30,66h12v12h-12z" />
+    <path android:fillColor="#FF6A3D" android:pathData="M42,66h12v12h-12z" />
+    <path android:fillColor="#7A3620" android:pathData="M54,66h12v12h-12z" />
+    <path android:fillColor="#FF6A3D" android:pathData="M66,66h12v12h-12z" />
+</vector>

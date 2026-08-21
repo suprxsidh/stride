@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suprxsidh.deficit.ai.gemini.GeminiFoodEstimate
+import com.suprxsidh.deficit.data.db.dao.MAX_PINNED_SNACKS
 import com.suprxsidh.deficit.data.db.entity.CustomFoodEntity
 import com.suprxsidh.deficit.data.db.entity.FoodEntryEntity
 import com.suprxsidh.deficit.data.db.entity.OffCacheEntity
@@ -38,6 +39,10 @@ class FoodLogViewModel(
     var quickAddName by mutableStateOf("")
     var quickAddKcal by mutableStateOf("")
 
+    /** Set when [logQuickAdd] rejects the current input; null once a submit attempt validates. */
+    var quickAddError by mutableStateOf<String?>(null)
+        private set
+
     var offQuery by mutableStateOf("")
     var offResults by mutableStateOf<List<OffCacheEntity>>(emptyList())
     var offSearchInFlight by mutableStateOf(false)
@@ -46,6 +51,20 @@ class FoodLogViewModel(
     var customFoodName by mutableStateOf("")
     var customFoodKcal by mutableStateOf("")
     var customFoodServingLabel by mutableStateOf("")
+
+    /** Set when [saveCustomFood] rejects the current input; null once a submit attempt validates. */
+    var customFoodError by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Set when [saveCustomFood] was asked to pin a food but the app already has
+     * [MAX_PINNED_SNACKS] pinned — the food still saves (unpinned) rather than being dropped
+     * entirely. Previously this case failed with zero feedback: the row silently never appeared
+     * in the pinned "Snacks" list (capped at [MAX_PINNED_SNACKS] there) even though nothing told
+     * the user why.
+     */
+    var pinCapMessage by mutableStateOf<String?>(null)
+        private set
 
     var aiDescription by mutableStateOf("")
     var aiSubmitInFlight by mutableStateOf(false)
@@ -100,8 +119,15 @@ class FoodLogViewModel(
     }
 
     fun logQuickAdd() {
-        val kcal = quickAddKcal.toIntOrNull() ?: return
-        if (quickAddName.isBlank()) return
+        val kcal = quickAddKcal.toIntOrNull()
+        if (quickAddName.isBlank() || kcal == null || kcal <= 0) {
+            quickAddError = when {
+                quickAddName.isBlank() -> "Enter a food name."
+                else -> "Enter a valid calorie amount."
+            }
+            return
+        }
+        quickAddError = null
         val name = quickAddName
         viewModelScope.launch {
             foodRepository.logQuickAdd(name, kcal)
@@ -133,13 +159,41 @@ class FoodLogViewModel(
     }
 
     fun saveCustomFood(isPinned: Boolean) {
-        val kcal = customFoodKcal.toIntOrNull() ?: return
-        if (customFoodName.isBlank()) return
+        val kcal = customFoodKcal.toIntOrNull()
+        if (customFoodName.isBlank() || kcal == null || kcal <= 0) {
+            customFoodError = when {
+                customFoodName.isBlank() -> "Enter a name."
+                else -> "Enter a valid calorie amount."
+            }
+            return
+        }
+        customFoodError = null
+        pinCapMessage = null
         val name = customFoodName
         val label = customFoodServingLabel.ifBlank { "1 serving" }
         viewModelScope.launch {
+            // Match by name first so re-saving an existing food (e.g. correcting its calorie
+            // count) updates that row instead of inserting a duplicate — the DB has no unique
+            // constraint on name, so a bare insert here previously always created a new row.
+            val existing = foodRepository.findCustomFoodByName(name)
+            val alreadyPinned = existing?.isPinned == true
+            val effectivePinned = when {
+                !isPinned -> false
+                alreadyPinned -> true
+                foodRepository.countPinnedCustomFoods() >= MAX_PINNED_SNACKS -> {
+                    pinCapMessage = "Saved \"$name\" without pinning — you already have $MAX_PINNED_SNACKS pinned snacks. Unpin one first."
+                    false
+                }
+                else -> true
+            }
             foodRepository.upsertCustomFood(
-                CustomFoodEntity(name = name, kcalPerServing = kcal, servingLabel = label, isPinned = isPinned)
+                CustomFoodEntity(
+                    id = existing?.id ?: 0,
+                    name = name,
+                    kcalPerServing = kcal,
+                    servingLabel = label,
+                    isPinned = effectivePinned,
+                )
             )
             customFoodName = ""
             customFoodKcal = ""

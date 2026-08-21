@@ -84,15 +84,18 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
 
             // Hero stat — the one number this whole screen exists to show. Everything else on
             // the dashboard is secondary to this LED readout (spec §6/§10 point 1).
+            // SPEC.md §2.4: "Label it a 'soft target' in the UI" — the raw number is never
+            // capped here even when over, so the real overage is always visible.
             LedReadout(
                 value = total.toString(),
-                label = if (budget > 0) "kcal logged of $budget" else "kcal logged today",
+                label = if (budget > 0) "kcal logged · soft target $budget" else "kcal logged today",
                 modifier = Modifier.fillMaxWidth(),
             )
 
             if (budget > 0) {
                 StartLineProgress(
                     progress = (total.toFloat() / budget.toFloat()).coerceIn(0f, 1f),
+                    overBudget = total > budget,
                     modifier = Modifier.padding(top = Spacing.sm),
                 )
             }

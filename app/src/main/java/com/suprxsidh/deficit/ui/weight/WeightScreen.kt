@@ -38,13 +38,16 @@ import java.time.LocalDate
 fun WeightScreen() {
     val app = LocalContext.current.applicationContext as DeficitApp
     val viewModel: WeightViewModel = viewModel(factory = viewModelFactory {
-        initializer { WeightViewModel(app.container.weightRepository, app.container.healthConnectRepository) }
+        initializer {
+            WeightViewModel(app.container.weightRepository, app.container.healthConnectRepository, app.container.userProfileRepository)
+        }
     })
 
     val raw by viewModel.rawSeries.collectAsState()
     val rolling by viewModel.rollingSeries.collectAsState()
     val totalChange by viewModel.totalChange.collectAsState()
     val trend by viewModel.trend.collectAsState()
+    val goalWeightKg by viewModel.goalWeightKg.collectAsState()
     val lastSyncResult by viewModel.lastSyncResult.collectAsState()
 
     // No scroll existed here before the redesign touched this screen -- with a fixed-height
@@ -77,6 +80,23 @@ fun WeightScreen() {
             )
         }
         Button(onClick = { viewModel.logWeighIn() }) { Text("Log weigh-in") }
+        viewModel.weighInError?.let { error ->
+            Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = Spacing.xs))
+        }
+
+        goalWeightKg?.let { goal ->
+            val latest = raw.lastOrNull()?.second
+            val toGoText = latest?.let { current ->
+                val remaining = current - goal
+                if (kotlin.math.abs(remaining) < 0.05) " · at goal" else " · %.1f kg to go".format(kotlin.math.abs(remaining))
+            } ?: ""
+            Text(
+                "Goal: ${"%.1f".format(goal)} kg$toGoText",
+                style = MaterialTheme.typography.bodyMedium,
+                color = StrideOnSurfaceMuted,
+                modifier = Modifier.padding(top = Spacing.xs),
+            )
+        }
 
         if (raw.size < 2) {
             Text("Log a couple of weigh-ins to see your chart.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted, modifier = Modifier.padding(top = Spacing.lg))

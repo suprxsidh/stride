@@ -136,3 +136,58 @@ notes below. No on-device verification done at any point — only `compileDebugK
 3. Decide whether any parked Minor items from Phases 1-3 are worth a follow-up pass, then scope
    Phase 4 from the remaining deferred backlog: notifications, Glance home-screen widget, guided
    routines, backup/export, full persistent setup checklist (§4.6).
+
+## Phase 1 Minor polish backlog: all 8 items fixed (2026-08-21)
+
+Fixed the 8 Minor items filed by the 2026-08-10 Phase 1 whole-branch review and left unfixed by
+design at the time (see that phase's section above for the original list). Bug/polish fixes only —
+no Phase 2/3/4-scoped work touched.
+
+1. **"Soft target" label copy** — `DashboardScreen.kt`'s hero `LedReadout` label changed from
+   `"kcal logged of $budget"` to `"kcal logged · soft target $budget"`, matching SPEC.md §2.4's
+   explicit instruction ("Label it a 'soft target' in the UI").
+2. **Silent validation failures** — quick-add (`FoodLogViewModel.logQuickAdd`), custom-food save
+   (`saveCustomFood`), and weigh-in (`WeightViewModel.logWeighIn`) all used to `return` silently on
+   invalid input. Each now sets an observable error string (`quickAddError`, `customFoodError`,
+   `weighInError`) that `FoodLogScreen.kt`/`WeightScreen.kt` render in `MaterialTheme.colorScheme.error`.
+3. **Over-budget bar visual cap** — `StartLineProgress` (in `ui/theme/component/StartLine.kt`) gained
+   an `overBudget: Boolean` param; when true the fully-lit bar renders in `StrideError` instead of
+   `StrideEmber`, so "at budget" and "over budget" no longer look identical once the bar caps at
+   100%. `DashboardScreen.kt` passes `overBudget = total > budget`. The LED readout's raw kcal number
+   was already uncapped, so the real overage was already visible numerically — only the bar needed a
+   distinct visual state.
+4. **Unused `goalWeightKg` display** — `WeightViewModel` gained an optional `UserProfileRepository`
+   param and a `goalWeightKg: StateFlow<Double?>`; `WeightScreen.kt` now shows "Goal: X kg" plus
+   "Y kg to go" (computed against the latest logged weight) below the weigh-in button.
+5. **Custom-food save created a duplicate instead of editing** — `CustomFoodEntity.id` always
+   defaulted to 0 (autoGenerate), so every save inserted a fresh row even when the name matched an
+   existing one. Added `CustomFoodDao.findByName()` (case-insensitive); `saveCustomFood` now looks up
+   an existing row by name first and reuses its `id` on upsert, so re-saving the same name updates
+   that row instead of duplicating it. No schema change needed (no new unique index).
+6. **Pin-cap-of-6 silent truncation** — `observePinned()`'s `LIMIT 6` only ever affected what
+   displayed; nothing stopped the DB from marking a 7th+ food `isPinned=true`, so it silently never
+   appeared. Added `CustomFoodDao.countPinned()` (uncapped) plus a shared `MAX_PINNED_SNACKS = 6`
+   constant; `saveCustomFood` now refuses to set the pin flag once the real count is already at the
+   cap (unless the food was already pinned), saves the food unpinned instead, and surfaces
+   `pinCapMessage` explaining why.
+7. **Missing launcher icon** — the manifest had no `android:icon`/`android:roundIcon` at all
+   (generic Android icon on the home screen). Added an adaptive icon
+   (`res/mipmap-anydpi-v26/ic_launcher{,_round}.xml` + `res/drawable/ic_launcher_{background,foreground}.xml`,
+   no legacy PNG mipmaps needed since minSdk 28 ≥ 26): flat `StrideBackground` (#0A0A0B) behind the
+   same 4x4 `StrideEmber`/`StrideEmberDim` checkerboard glyph `NavFlagIcon` already uses for the
+   active bottom-nav tab, so the launcher icon shares the app's own motif instead of a generic one.
+   Verified with `aapt dump badging` on the built APK that `application-icon`/`launchable-activity`
+   now resolve to it.
+8. **Deprecated `Divider()`/`kotlinOptions{}`** — a repo-wide grep found zero literal `Divider()`
+   calls left (the visual redesign had already replaced them all with `StartLineDivider`/
+   `HorizontalDivider`, contrary to what the polish item's phrasing implied was still open — verified
+   directly rather than assumed). `kotlinOptions { jvmTarget = "17" }` in `app/build.gradle.kts` (the
+   part that *was* still present and deprecated as of Kotlin 2.0, removed in 2.2) replaced with the
+   current top-level `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }` DSL.
+
+**Verification:** `./gradlew testDebugUnitTest` — 199/199 passing (same count as before this session;
+no new tests added, none of the existing ones needed changes since all new ViewModel/DAO params are
+optional/additive). `./gradlew assembleDebug` succeeds; confirmed via `aapt dump badging` that the
+new launcher icon is actually packaged into the APK. **Not verified on-device** — same standing
+caveat as every other unverified item in this file; the launcher icon, over-budget bar color, goal
+weight readout, and all three new error messages have only been compiled, never looked at on screen.

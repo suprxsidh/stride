@@ -67,6 +67,8 @@ class FoodRepository(
     fun observeAllCustomFoods(): Flow<List<CustomFoodEntity>> = customFoodDao.observeAll()
     fun observePinnedCustomFoods(): Flow<List<CustomFoodEntity>> = customFoodDao.observePinned()
     suspend fun upsertCustomFood(food: CustomFoodEntity): Long = customFoodDao.upsert(food)
+    suspend fun findCustomFoodByName(name: String): CustomFoodEntity? = customFoodDao.findByName(name)
+    suspend fun countPinnedCustomFoods(): Int = customFoodDao.countPinned()
     suspend fun deleteCustomFood(food: CustomFoodEntity) = customFoodDao.delete(food)
     suspend fun deleteFoodEntry(entry: FoodEntryEntity) = foodEntryDao.delete(entry)
 }

@@ -158,6 +158,9 @@ fun FoodLogScreen() {
             )
         }
         item { Button(onClick = { viewModel.logQuickAdd() }) { Text("Add") } }
+        viewModel.quickAddError?.let { error ->
+            item { Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
 
         item { StartLineDivider(modifier = Modifier.padding(vertical = Spacing.sm)) }
         item { Text("Search packaged foods (Open Food Facts)".uppercase(), style = MaterialTheme.typography.titleMedium) }
@@ -203,6 +206,12 @@ fun FoodLogScreen() {
                 Button(onClick = { viewModel.saveCustomFood(isPinned = false) }) { Text("Save") }
                 Button(onClick = { viewModel.saveCustomFood(isPinned = true) }) { Text("Save + pin") }
             }
+        }
+        viewModel.customFoodError?.let { error ->
+            item { Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
+        viewModel.pinCapMessage?.let { message ->
+            item { Text(message, color = StrideOnSurfaceMuted, style = MaterialTheme.typography.bodySmall) }
         }
         items(customFoods) { food ->
             var servingsText by remember(food.name) { mutableStateOf("1") }
