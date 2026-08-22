@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.suprxsidh.deficit"
+    namespace = "com.suprxsidh.stride"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.suprxsidh.deficit"
+        applicationId = "com.suprxsidh.deficit" // kept stable intentionally — changing this forces a fresh install and loses local data / Health Connect authorization
         minSdk = 28
         targetSdk = 36
         versionCode = 1

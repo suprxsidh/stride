@@ -1,0 +1,26 @@
+package com.suprxsidh.stride.data.db.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.suprxsidh.stride.data.db.entity.WeighInEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface WeighInDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(weighIn: WeighInEntity): Long
+
+    @Query("SELECT * FROM weigh_in ORDER BY date ASC")
+    fun observeAll(): Flow<List<WeighInEntity>>
+
+    @Query("SELECT * FROM weigh_in WHERE date = :date LIMIT 1")
+    suspend fun getForDate(date: String): WeighInEntity?
+
+    @Query("SELECT * FROM weigh_in WHERE hcRecordId = :hcRecordId LIMIT 1")
+    suspend fun getByHcRecordId(hcRecordId: String): WeighInEntity?
+
+    @Query("SELECT * FROM weigh_in WHERE syncedToHc = 0")
+    suspend fun getUnsyncedToHc(): List<WeighInEntity>
+}

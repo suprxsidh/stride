@@ -1,0 +1,78 @@
+package com.suprxsidh.stride.data.db.dao
+
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import com.suprxsidh.stride.data.db.StrideDatabase
+import com.suprxsidh.stride.data.db.entity.SyncStateEntity
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class SyncStateDaoTest {
+    private lateinit var db: StrideDatabase
+    private lateinit var dao: SyncStateDao
+
+    @Before
+    fun setUp() {
+        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), StrideDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        dao = db.syncStateDao()
+    }
+
+    @After
+    fun tearDown() { db.close() }
+
+    @Test
+    fun `get returns null before any upsert`() = runTest {
+        assertNull(dao.get())
+    }
+
+    @Test
+    fun `upsert then get returns stored token`() = runTest {
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "token-abc", lastSyncEpochMs = 1_700_000_000_000L))
+        val state = dao.get()
+        assertEquals("token-abc", state?.hcChangesToken)
+    }
+
+    @Test
+    fun `second upsert replaces the single row`() = runTest {
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "first", lastSyncEpochMs = 1L))
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "second", lastSyncEpochMs = 2L))
+        assertEquals("second", dao.get()?.hcChangesToken)
+    }
+
+    @Test
+    fun `watermark setters create the row when none exists`() = runTest {
+        dao.setExerciseSyncWatermark(111L)
+        assertEquals(111L, dao.get()?.lastSyncEpochMs)
+        assertNull(dao.get()?.lastWeightSyncEpochMs)
+    }
+
+    @Test
+    fun `the two watermarks advance independently and do not clobber each other`() = runTest {
+        dao.setExerciseSyncWatermark(111L)
+        dao.setWeightSyncWatermark(222L)
+        dao.setExerciseSyncWatermark(333L)
+
+        val state = dao.get()!!
+        assertEquals(333L, state.lastSyncEpochMs)
+        assertEquals(222L, state.lastWeightSyncEpochMs)
+    }
+
+    @Test
+    fun `advancing a watermark preserves the changes token`() = runTest {
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "token-abc", lastSyncEpochMs = null))
+        dao.setWeightSyncWatermark(999L)
+        assertEquals("token-abc", dao.get()?.hcChangesToken)
+        assertEquals(999L, dao.get()?.lastWeightSyncEpochMs)
+    }
+}
