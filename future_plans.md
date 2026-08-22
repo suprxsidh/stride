@@ -1,4 +1,4 @@
-# deficit — parked ideas
+# stride — parked ideas
 
 - Gym/strength logging module — explicitly deferred to v2.0.0 per SPEC.md §3.16.
 - Phase 2 (per SPEC.md, not yet scoped into a plan): Health Connect run detection + two-way weigh-in sync, Gemini AI food estimation, all notifications (motivation/meals/weigh-in/posture/backup), home-screen widget, guided routines, backup/export, weekly commitment + consistency grid + weekly review, adaptive budget recalculation.

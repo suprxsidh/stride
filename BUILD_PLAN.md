@@ -1,7 +1,7 @@
-# deficit — session continuation
+# stride — session continuation
 
 ## Status (2026-08-10)
-- Project scaffolded: `~/claudecode-projects/deficit`, git-initialized.
+- Project scaffolded: `~/claudecode-projects/deficit` (git-initialized), directory renamed to `~/claudecode-projects/stride` on 2026-08-22 as part of the full internal rename.
 - `SPEC.md` saved (Fable plan, verbatim) — full 16-section spec, source of truth for ALL phases.
 - **Phasing decision (user-approved 2026-08-10):** build in phases, not one pass. Phase 1 = "core loop" only:
   - Scaffold (Gradle, Kotlin, Compose, Material 3 black+accent theme, nav shell — SPEC.md §2, execution-plan agent 1, minus HC/notification manifest bits)
@@ -41,7 +41,7 @@ Scope: weekly commitment core — week-boundary math + adaptive budget + motivat
 - **Not yet verified on-device** — only Robolectric/JVM unit tests + `assembleDebug` have run, same as Phases 1-2. The final review specifically flagged the battery-optimization deep link's OriginOS behavior, the `ON_RESUME` recheck actually firing after returning from that settings screen, and whether Samsung Health/the watch tags runs as `56` vs `57` as the biggest untested real-device surface for this phase.
 
 ## Post-Phase-3 fixes + v1.0.0/v1.0.1 release (2026-08-12/13)
-App renamed Deficit → Stride (cosmetic only, package stays `com.suprxsidh.deficit`). Released `v1.0.0` (GitHub, debug APK) then `v1.0.1` fixing the first real on-device bug: Health Connect never listed Stride as a connectable app at all (missing `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE` manifest handler, required on Android 14+).
+App renamed Deficit → Stride, initially cosmetic only (package stayed `com.suprxsidh.deficit`). Released `v1.0.0` (GitHub, debug APK) then `v1.0.1` fixing the first real on-device bug: Health Connect never listed Stride as a connectable app at all (missing `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE` manifest handler, required on Android 14+). **Update 2026-08-22**: full internal rename to Stride (`e8733d7`) — package, classes, and local dir now all say Stride; `applicationId` deliberately still `com.suprxsidh.deficit` (Android app identity, changing it forces reinstall + loses Health Connect auth + local data). The domain concept "deficit" (calorie deficit) is a separate thing and stays as-is.
 
 **2026-08-13 session:** user sideloaded v1.0.1, slept, woke up — still zero Health Connect import. Root cause (found by static code read, no device available): the sync worker was only ever scheduled from `MainActivity.onCreate`, gated on permissions *already* being granted at that check. Onboarding's permission-grant step never scheduled it itself, so on a fresh install the worker never got enqueued until a full cold restart — which hadn't happened since the app was only backgrounded overnight. Diagnosed a fix (`OnboardingScreen.kt`'s permission-result callback calling `HealthConnectSyncWorker.schedulePeriodic`/`triggerOneOff` directly) but left it uncommitted; re-applied plus a second independent gap in the 2026-08-20 session below. Also diagnosed (not a bug): the motivation card's logic always produces a line — if it "isn't there," it's a plain default `Card` blending into the bland UI, not a crash. And clarified for the user: anterior-pelvic-tilt/posture routines were never built, that's SPEC §3.12/§3.13, still Phase 4 backlog, not a regression.
 

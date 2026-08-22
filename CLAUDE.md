@@ -1,4 +1,4 @@
-# deficit — project constraints
+# stride — project constraints
 
 Personal Android weight-loss tracker. Single user (Suprasidh), sideloaded debug APK, target device Vivo X200T (Android 16, OriginOS).
 
