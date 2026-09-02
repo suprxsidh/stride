@@ -605,8 +605,10 @@ import com.suprxsidh.stride.data.repository.HealthConnectRepository
 import com.suprxsidh.stride.data.repository.UserProfileRepository
 import com.suprxsidh.stride.data.repository.WeightRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -687,13 +689,6 @@ class DashboardViewModel(
 
 enum class HealthConnectStatus { UNAVAILABLE, PERMISSIONS_NEEDED, OK }
 ```
-
-Note: this intermediate version keeps `MutableStateFlow`/`asStateFlow` usages for `_healthConnectStatus`/`_batteryOptimizationIgnored` but the imports for those were previously pulled in transitively — add them explicitly:
-```kotlin
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-```
-(add both to the import block above, alphabetically among the existing `kotlinx.coroutines.flow.*` imports).
 
 `todaysRun`/`ExerciseSessionEntity` stay for now — Task 2 replaces this with `caloriesBurnedToday` and removes the `ExerciseSessionEntity` import along with the entity itself.
 

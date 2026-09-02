@@ -13,7 +13,6 @@ import com.suprxsidh.stride.data.db.dao.PendingDraftDao
 import com.suprxsidh.stride.data.db.dao.SyncStateDao
 import com.suprxsidh.stride.data.db.dao.UserProfileDao
 import com.suprxsidh.stride.data.db.dao.WeighInDao
-import com.suprxsidh.stride.data.db.dao.WeeklyReviewDao
 import com.suprxsidh.stride.data.db.entity.AppSettingsEntity
 import com.suprxsidh.stride.data.db.entity.CustomFoodEntity
 import com.suprxsidh.stride.data.db.entity.ExerciseSessionEntity
@@ -23,7 +22,6 @@ import com.suprxsidh.stride.data.db.entity.PendingDraftEntity
 import com.suprxsidh.stride.data.db.entity.SyncStateEntity
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
 import com.suprxsidh.stride.data.db.entity.WeighInEntity
-import com.suprxsidh.stride.data.db.entity.WeeklyReviewEntity
 
 @Database(
     entities = [
@@ -35,15 +33,14 @@ import com.suprxsidh.stride.data.db.entity.WeeklyReviewEntity
         ExerciseSessionEntity::class,
         SyncStateEntity::class,
         AppSettingsEntity::class,
-        PendingDraftEntity::class,
-        WeeklyReviewEntity::class
+        PendingDraftEntity::class
     ],
-    // v5: WeeklyReviewEntity added; AppSettingsEntity gained weekly commitment + review fields.
-    // v6: AppSettingsEntity gained lastMotivationDate (final-review fix wave, gates the
-    // motivation line to once per logical day). No Migration object — same convention as v4->v5:
-    // fallbackToDestructiveMigration() below handles the upgrade for this single-user, sideloaded,
-    // no-cloud-sync app.
-    version = 6,
+    // v7: WeeklyReviewEntity removed and AppSettingsEntity lost its weekly-commitment/review/
+    // motivation fields as part of the calorie-only scope-down (see
+    // docs/superpowers/specs/2026-09-02-calorie-only-scope-down-design.md). Still no Migration
+    // object -- fallbackToDestructiveMigration() below handles the upgrade, same convention as
+    // every prior version bump on this single-user, sideloaded, no-cloud-sync app.
+    version = 7,
     exportSchema = false
 )
 abstract class StrideDatabase : RoomDatabase() {
@@ -56,7 +53,6 @@ abstract class StrideDatabase : RoomDatabase() {
     abstract fun syncStateDao(): SyncStateDao
     abstract fun appSettingsDao(): AppSettingsDao
     abstract fun pendingDraftDao(): PendingDraftDao
-    abstract fun weeklyReviewDao(): WeeklyReviewDao
 
     companion object {
         @Volatile private var INSTANCE: StrideDatabase? = null

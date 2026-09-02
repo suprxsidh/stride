@@ -7,5 +7,4 @@ object Routes {
     const val WEIGHT = "weight"
     const val RUN_DETAIL = "run_detail"
     const val SETTINGS = "settings"
-    const val CONSISTENCY = "consistency"
 }

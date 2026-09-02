@@ -50,18 +50,6 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun `weekly run target and floor default to 4 and 3, and are settable`() = runTest {
-        assertEquals(4, repository.observeWeeklyRunTarget().first())
-        assertEquals(3, repository.observeWeeklyRunFloor().first())
-
-        repository.setWeeklyRunTarget(5)
-        repository.setWeeklyRunFloor(4)
-
-        assertEquals(5, repository.observeWeeklyRunTarget().first())
-        assertEquals(4, repository.observeWeeklyRunFloor().first())
-    }
-
-    @Test
     fun `manual budget override is null by default and round-trips through set and clear`() = runTest {
         assertEquals(null, repository.getManualBudgetOverrideKcal())
 
@@ -70,25 +58,5 @@ class SettingsRepositoryTest {
 
         repository.setManualBudgetOverrideKcal(null)
         assertEquals(null, repository.getManualBudgetOverrideKcal())
-    }
-
-    @Test
-    fun `last-seen review watermark and last motivation category round-trip`() = runTest {
-        assertEquals(null, repository.getLastReviewSeenWeekStart())
-        repository.setLastReviewSeenWeekStart("2024-01-08")
-        assertEquals("2024-01-08", repository.getLastReviewSeenWeekStart())
-
-        assertEquals(null, repository.getLastMotivationCategory())
-        repository.setLastMotivationCategory("WEEKLY_PROGRESS")
-        assertEquals("WEEKLY_PROGRESS", repository.getLastMotivationCategory())
-    }
-
-    // Final-review fix: DashboardViewModel needs to know *when* a motivation category was
-    // last chosen (not just which one) to gate recomputation to once per logical day.
-    @Test
-    fun `last motivation date round-trips and defaults to null`() = runTest {
-        assertEquals(null, repository.getLastMotivationDate())
-        repository.setLastMotivationDate("2026-08-10")
-        assertEquals("2026-08-10", repository.getLastMotivationDate())
     }
 }

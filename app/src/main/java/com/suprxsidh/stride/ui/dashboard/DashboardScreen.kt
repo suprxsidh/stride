@@ -46,9 +46,6 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 app.container.healthConnectAvailability,
                 app.container::hasHealthConnectPermissions,
                 { com.suprxsidh.stride.system.BatteryOptimization.isIgnoringBatteryOptimizations(app) },
-                app.container.weeklyCommitmentRepository,
-                app.container.weeklyReviewRepository,
-                app.container.settingsRepository,
                 scheduleHealthConnectSync = {
                     HealthConnectSyncWorker.schedulePeriodic(app)
                     HealthConnectSyncWorker.triggerOneOff(app)
@@ -100,16 +97,6 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                 )
             }
         }
-
-        val unseenReview by viewModel.unseenWeeklyReview.collectAsState()
-        unseenReview?.let { WeeklyReviewCard(it, onDismiss = viewModel::dismissWeeklyReview) }
-
-        val weeklyState by viewModel.weeklyCommitmentState.collectAsState()
-        val floorIntactStreakWeeks by viewModel.floorIntactStreakWeeks.collectAsState()
-        weeklyState?.let { WeeklyCommitmentCard(it, floorIntactStreakWeeks) }
-
-        val motivationLine by viewModel.motivationLine.collectAsState()
-        motivationLine?.let { MotivationCard(it) }
 
         StartLineDivider(modifier = Modifier.padding(vertical = Spacing.lg))
         Text("Weight (7-day average)".uppercase(), style = MaterialTheme.typography.titleMedium)

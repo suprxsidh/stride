@@ -5,20 +5,11 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suprxsidh.stride.data.calc.DayBoundary
-import com.suprxsidh.stride.data.calc.FloorState
-import com.suprxsidh.stride.data.calc.MotivationCategory
-import com.suprxsidh.stride.data.calc.MotivationInputs
-import com.suprxsidh.stride.data.calc.MotivationLine
 import com.suprxsidh.stride.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
-import com.suprxsidh.stride.data.db.entity.WeeklyReviewEntity
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.HealthConnectRepository
-import com.suprxsidh.stride.data.repository.SettingsRepository
 import com.suprxsidh.stride.data.repository.UserProfileRepository
-import com.suprxsidh.stride.data.repository.WeeklyCommitmentRepository
-import com.suprxsidh.stride.data.repository.WeeklyCommitmentState
-import com.suprxsidh.stride.data.repository.WeeklyReviewRepository
 import com.suprxsidh.stride.data.repository.WeightRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,9 +35,6 @@ class DashboardViewModel(
     private val healthConnectAvailability: Int,
     private val hasHealthConnectPermissions: suspend () -> Boolean,
     private val isIgnoringBatteryOptimizations: () -> Boolean,
-    private val weeklyCommitmentRepository: WeeklyCommitmentRepository,
-    private val weeklyReviewRepository: WeeklyReviewRepository,
-    private val settingsRepository: SettingsRepository,
     private val clock: () -> LocalDateTime = { LocalDateTime.now() },
     // Health Connect permission can be granted from OUTSIDE the app: the dashboard's
     // "Open Health Connect settings" button (see DashboardScreen) deep-links to the system
@@ -75,24 +63,6 @@ class DashboardViewModel(
                 sessions.filter { it.date == today }.maxByOrNull { it.startTimeEpochMs }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    val weeklyCommitmentState: StateFlow<WeeklyCommitmentState?> =
-        settingsRepository.observeWeeklyRunTarget()
-            .combine(settingsRepository.observeWeeklyRunFloor()) { target, floor -> target to floor }
-            .flatMapLatest { (target, floor) -> weeklyCommitmentRepository.observeCurrentWeekState(target, floor) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    private val _motivationLine = MutableStateFlow<String?>(null)
-    val motivationLine: StateFlow<String?> = _motivationLine.asStateFlow()
-
-    // SPEC §3.7's "headline streak stat" (consecutive weeks with the floor intact) needs a
-    // permanent home in the UI, not just an occasional appearance via the rotating motivation
-    // line. Computed once alongside the motivation line in init (same cost, same lifecycle).
-    private val _floorIntactStreakWeeks = MutableStateFlow(0)
-    val floorIntactStreakWeeks: StateFlow<Int> = _floorIntactStreakWeeks.asStateFlow()
-
-    private val _unseenWeeklyReview = MutableStateFlow<WeeklyReviewEntity?>(null)
-    val unseenWeeklyReview: StateFlow<WeeklyReviewEntity?> = _unseenWeeklyReview.asStateFlow()
 
     private val _healthConnectStatus = MutableStateFlow(HealthConnectStatus.UNAVAILABLE)
     val healthConnectStatus: StateFlow<HealthConnectStatus> = _healthConnectStatus.asStateFlow()
@@ -138,75 +108,8 @@ class DashboardViewModel(
 
     init {
         refreshDeviceStatuses()
-
-        viewModelScope.launch {
-            try {
-                weeklyReviewRepository.generateForCompletedWeekIfDue()
-                _unseenWeeklyReview.value = weeklyReviewRepository.unseenReview()
-            } catch (e: Exception) {
-                // A DB or clock hiccup here must not block the rest of the dashboard from loading.
-                Log.w("DashboardViewModel", "Failed to generate or check the weekly review", e)
-            }
-        }
-
-        viewModelScope.launch {
-            try {
-                val target = settingsRepository.observeWeeklyRunTarget().first()
-                val floor = settingsRepository.observeWeeklyRunFloor().first()
-                val state = weeklyCommitmentRepository.observeCurrentWeekState(target, floor).first()
-                val streak = weeklyCommitmentRepository.consecutiveFloorIntactStreakWeeks(target, floor)
-                val totalRuns = weeklyCommitmentRepository.totalRunDaysAllTime()
-                val weightChange = weightRepository.observeTotalChangeSinceStart().first()
-                _floorIntactStreakWeeks.value = streak
-
-                val inputs = MotivationInputs(
-                    floorAtRisk = state.floorState != FloorState.OK,
-                    runsThisWeek = state.runsThisWeek,
-                    weeklyTarget = state.target,
-                    daysLeftInclusive = state.daysLeftInclusive,
-                    floorIntactStreakWeeks = streak,
-                    rollingWeightChangeKg = weightChange,
-                    totalRunsLogged = totalRuns
-                )
-
-                val today = DayBoundary.logicalDate(clock()).toString()
-                val lastDate = settingsRepository.getLastMotivationDate()
-                val storedCategory = settingsRepository.getLastMotivationCategory()
-                    ?.let { runCatching { MotivationCategory.valueOf(it) }.getOrNull() }
-
-                // SPEC §3.7: one motivation line per logical day, never the same category two
-                // days running. Re-picking a category on every cold start (the old behavior)
-                // could show a *different* line on a second same-day launch, because the
-                // category persisted by the first launch then looked like "yesterday's"
-                // category to the rotation-avoidance logic below. Gate recomputation on the
-                // logical date actually having changed, and reuse today's already-chosen
-                // category otherwise.
-                if (lastDate == today && storedCategory != null) {
-                    val reused = MotivationLine.renderIfEligible(inputs, storedCategory)
-                    if (reused != null) {
-                        _motivationLine.value = reused
-                        return@launch
-                    }
-                    // storedCategory is no longer eligible (e.g. its underlying stat vanished
-                    // intra-day) -- fall through and pick a fresh one below.
-                }
-
-                val (category, line) = MotivationLine.dailyLine(inputs, storedCategory)
-                settingsRepository.setLastMotivationCategory(category.name)
-                settingsRepository.setLastMotivationDate(today)
-                _motivationLine.value = line
-            } catch (e: Exception) {
-                Log.w("DashboardViewModel", "Failed to compute the motivation line", e)
-            }
-        }
     }
 
-    fun dismissWeeklyReview() {
-        viewModelScope.launch {
-            _unseenWeeklyReview.value?.let { weeklyReviewRepository.markReviewSeen(it.weekStartDate) }
-            _unseenWeeklyReview.value = null
-        }
-    }
 }
 
 enum class HealthConnectStatus { UNAVAILABLE, PERMISSIONS_NEEDED, OK }

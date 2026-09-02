@@ -57,13 +57,6 @@ class DashboardViewModelTest {
         isIgnoringBatteryOptimizations: () -> Boolean = { false },
         scheduleHealthConnectSync: () -> Unit = {}
     ): DashboardViewModel {
-        val settingsRepository = com.suprxsidh.stride.data.repository.SettingsRepository(db.appSettingsDao())
-        val weeklyCommitmentRepository = com.suprxsidh.stride.data.repository.WeeklyCommitmentRepository(db.exerciseSessionDao(), clock)
-        val adaptiveBudgetRepository = com.suprxsidh.stride.data.repository.AdaptiveBudgetRepository(db.userProfileDao(), db.weighInDao(), settingsRepository)
-        val weeklyReviewRepository = com.suprxsidh.stride.data.repository.WeeklyReviewRepository(
-            db.weeklyReviewDao(), weeklyCommitmentRepository, adaptiveBudgetRepository,
-            db.foodEntryDao(), db.weighInDao(), db.userProfileDao(), settingsRepository, clock
-        )
         return DashboardViewModel(
             FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = clock),
             UserProfileRepository(db.userProfileDao(), db.weighInDao()),
@@ -72,9 +65,6 @@ class DashboardViewModelTest {
             healthConnectAvailability,
             hasPermissions,
             isIgnoringBatteryOptimizations,
-            weeklyCommitmentRepository,
-            weeklyReviewRepository,
-            settingsRepository,
             clock,
             scheduleHealthConnectSync
         )
@@ -198,33 +188,6 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `weeklyCommitmentState reflects this week's run days against the default target and floor`() = runTest(testDispatcher) {
-        // 2026-08-10 is the Monday of the week the fixture clock sits in.
-        healthDao.insert(
-            ExerciseSessionEntity(
-                hcRecordId = "hc-1", date = "2026-08-10", exerciseType = "56", startTimeEpochMs = 1L,
-                durationMin = 30, distanceM = 5000.0, avgPaceSecPerKm = 360.0, avgHr = 150, maxHr = 170, kcalReal = 350, kcalCredited = 175
-            )
-        )
-        val viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 12, 0) })
-        backgroundScope.launch { viewModel.weeklyCommitmentState.collect {} }
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        val state = viewModel.weeklyCommitmentState.value
-        assertEquals(1, state?.runsThisWeek)
-        assertEquals(4, state?.target)
-        assertEquals(3, state?.floor)
-    }
-
-    @Test
-    fun `motivationLine is populated after load`() = runTest(testDispatcher) {
-        val viewModel = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 12, 0) })
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals("0/4 runs this week · 7 days left.", viewModel.motivationLine.value)
-    }
-
-    @Test
     fun `batteryOptimizationIgnored reflects the lambda's value on load`() = runTest(testDispatcher) {
         val viewModel = buildViewModel(
             clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
@@ -264,92 +227,13 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `unseenWeeklyReview surfaces a freshly generated review, dismissing clears it`() = runTest(testDispatcher) {
-        db.userProfileDao().upsert(
-            com.suprxsidh.stride.data.db.entity.UserProfileEntity(
-                heightCm = 178.0, weightKgAtStart = 80.0, age = 29, sex = Sex.MALE.name,
-                goalWeightKg = 70.0, softBudgetKcal = 1850, createdAt = 0L
-            )
-        )
-        // "Now" is Monday 2024-01-15 -> the week of 2024-01-08..14 just ended.
-        val viewModel = buildViewModel(clock = { LocalDateTime.of(2024, 1, 15, 8, 0) })
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        val review = viewModel.unseenWeeklyReview.value
-        assertEquals("2024-01-08", review?.weekStartDate)
-
-        viewModel.dismissWeeklyReview()
-        testDispatcher.scheduler.advanceUntilIdle()
-        assertNull(viewModel.unseenWeeklyReview.value)
-    }
-
-    @Test
-    fun `floorIntactStreakWeeks exposes the repository's streak value`() = runTest(testDispatcher) {
-        backgroundScope.launch { viewModel.floorIntactStreakWeeks.collect {} }
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // No prior weeks in the DB at all -> the most recent completed week is BROKEN
-        // (0 runs < floor), so the streak is 0. This is mainly a wiring check: the same
-        // value the ViewModel already computes for the motivation line must also be
-        // surfaced permanently for WeeklyCommitmentCard (final-review fix).
-        assertEquals(0, viewModel.floorIntactStreakWeeks.value)
-    }
-
-    // Final-review fix: the motivation category used to be re-rolled on every cold start with
-    // no date check, so a second same-day launch could show a *different* line than the first
-    // (see DashboardViewModel's init: the category persisted by launch #1 then looked like
-    // "yesterday's" category to the rotation-avoidance logic, forcing launch #2 to skip to the
-    // next eligible category). These tests insert an old run so two categories are eligible
-    // (WEEKLY_PROGRESS and TOTAL_RUNS) so a rotation would actually be observable.
-    @Test
-    fun `motivation line does not rotate on a second cold start the same logical day`() = runTest(testDispatcher) {
-        db.exerciseSessionDao().insert(
-            ExerciseSessionEntity(
-                hcRecordId = "hc-old", date = "2020-01-01", exerciseType = "56", startTimeEpochMs = 0L,
-                durationMin = 30, distanceM = null, avgPaceSecPerKm = null, avgHr = null, maxHr = null,
-                kcalReal = 300, kcalCredited = 150
-            )
-        )
-        // `viewModel` (built in setUp with clock 2026-08-10 12:00) hasn't run its init
-        // coroutine yet -- StandardTestDispatcher only drains on advanceUntilIdle -- so this
-        // first drain is cold start #1, and it sees the run inserted above.
-        testDispatcher.scheduler.advanceUntilIdle()
-        val firstLine = viewModel.motivationLine.value
-        assertEquals("0/4 runs this week · 7 days left.", firstLine)
-
-        val secondColdStart = buildViewModel(clock = { LocalDateTime.of(2026, 8, 10, 20, 0) }) // later, same logical day
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(firstLine, secondColdStart.motivationLine.value)
-    }
-
-    @Test
-    fun `motivation line rotates once the logical date actually changes`() = runTest(testDispatcher) {
-        db.exerciseSessionDao().insert(
-            ExerciseSessionEntity(
-                hcRecordId = "hc-old", date = "2020-01-01", exerciseType = "56", startTimeEpochMs = 0L,
-                durationMin = 30, distanceM = null, avgPaceSecPerKm = null, avgHr = null, maxHr = null,
-                kcalReal = 300, kcalCredited = 150
-            )
-        )
-        testDispatcher.scheduler.advanceUntilIdle()
-        val dayOneLine = viewModel.motivationLine.value
-        assertEquals("0/4 runs this week · 7 days left.", dayOneLine)
-
-        val dayTwo = buildViewModel(clock = { LocalDateTime.of(2026, 8, 11, 9, 0) })
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals("1 runs logged since you started.", dayTwo.motivationLine.value)
-    }
-
-    // Regression test for a real bug: Health Connect permission can be granted OUTSIDE the app
-    // via the dashboard's "Open Health Connect settings" deep link. The user can then return to
-    // Stride by backgrounding (not killing) it, so ON_RESUME -> refreshDeviceStatuses() is the
-    // ONLY place that ever learns about the grant on this path. Before this fix, that method
-    // updated the status banner to OK but never scheduled the sync worker, so sync silently
-    // never started until a full process kill + cold start.
-    @Test
     fun `refreshDeviceStatuses schedules HC sync on the transition into OK`() = runTest(testDispatcher) {
+        // Regression test for a real bug: Health Connect permission can be granted OUTSIDE the app
+        // via the dashboard's "Open Health Connect settings" deep link. The user can then return to
+        // Stride by backgrounding (not killing) it, so ON_RESUME -> refreshDeviceStatuses() is the
+        // ONLY place that ever learns about the grant on this path. Before this fix, that method
+        // updated the status banner to OK but never scheduled the sync worker, so sync silently
+        // never started until a full process kill + cold start.
         var scheduleCalls = 0
         var permissionsGranted = false
         val viewModel = buildViewModel(

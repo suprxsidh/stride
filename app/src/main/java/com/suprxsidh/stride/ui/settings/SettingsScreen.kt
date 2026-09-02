@@ -62,33 +62,6 @@ fun SettingsScreen() {
         }
 
         StartLineDivider(modifier = Modifier.padding(vertical = Spacing.lg))
-        Text("Weekly run goal".uppercase(), style = MaterialTheme.typography.titleMedium)
-        Text("Target and hard floor for the Monday-Sunday week. Any run on any day counts equally.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
-        Spacer(Modifier.height(Spacing.sm))
-
-        val target by viewModel.weeklyRunTarget.collectAsState()
-        val floor by viewModel.weeklyRunFloor.collectAsState()
-        var targetInput by remember(target) { mutableStateOf(target.toString()) }
-        var floorInput by remember(floor) { mutableStateOf(floor.toString()) }
-
-        Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = targetInput, onValueChange = { targetInput = it },
-                label = { Text("Target") }, modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(Spacing.sm))
-            OutlinedTextField(
-                value = floorInput, onValueChange = { floorInput = it },
-                label = { Text("Floor") }, modifier = Modifier.weight(1f)
-            )
-        }
-        Spacer(Modifier.height(Spacing.sm))
-        Button(onClick = {
-            targetInput.toIntOrNull()?.let { viewModel.saveWeeklyRunTarget(it) }
-            floorInput.toIntOrNull()?.let { viewModel.saveWeeklyRunFloor(it) }
-        }) { Text("Save weekly goal") }
-
-        StartLineDivider(modifier = Modifier.padding(vertical = Spacing.lg))
         Text("Calorie budget override".uppercase(), style = MaterialTheme.typography.titleMedium)
         Text("Manually set the daily budget. Overrides the automatic weekly recompute until cleared.", style = MaterialTheme.typography.bodyMedium, color = StrideOnSurfaceMuted)
         Spacer(Modifier.height(Spacing.sm))
