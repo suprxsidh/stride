@@ -75,3 +75,14 @@ after the HC sync-scheduling fix merged, then merged to master itself after a wh
 - **Never verified on a real device at any point** — the LED-readout glow-fake, punch-card notch
   shape, and nav-flag glyph have only ever been compiled (`compileDebugKotlin`, `assembleDebug`),
   never rendered on screen. This is the single biggest open risk on this whole redesign.
+
+## Calorie-only scope-down (started 2026-09-02, IN PROGRESS — see BUILD_PLAN.md Phase 5)
+
+App is being re-scoped to a pure calorie counter per user direction. Once this lands, treat these as current facts, not history:
+- Health Connect's `REQUIRED_PERMISSIONS` covers only `TotalCaloriesBurnedRecord` (read) and `WeightRecord` (read+write) — no more Exercise/Distance/HeartRate. Any future exercise-tracking work re-adds those deliberately, not by assuming they're still there.
+- `HealthConnectRepository` no longer has `syncExerciseSessions()`/`observeExerciseSessions()` — it exposes `getTodaysCaloriesBurned()` instead, reading the whole logical day's total (basal + active) directly, not a per-exercise-session credit.
+- Open Food Facts search is gone — Gemini (photo or text) is the only food-logging path. `FoodEntryEntity.offBarcode` no longer exists.
+- `StrideDatabase` version climbs 6→9 across this scope-down's tasks (still `fallbackToDestructiveMigration()`, no real `Migration` objects — same convention as every prior bump).
+- Exercise/running/weekly-commitment code is deferred, not deleted from git history — see `future_plans.md` for exactly which commits to resume from if this comes back.
+
+**Process note for future SDD plans on this project:** a plan step that says "add these imports" as prose *after* a fenced code block gets missed — the pre-flight scan for this plan caught exactly that (Task 1's `DashboardViewModel.kt`). Put every import the code block actually needs inside the code block itself, never in a trailing note.

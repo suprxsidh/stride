@@ -191,3 +191,15 @@ optional/additive). `./gradlew assembleDebug` succeeds; confirmed via `aapt dump
 new launcher icon is actually packaged into the APK. **Not verified on-device** — same standing
 caveat as every other unverified item in this file; the launcher icon, over-budget bar color, goal
 weight readout, and all three new error messages have only been compiled, never looked at on screen.
+
+## Phase 5: Calorie-only scope-down (IN PROGRESS, started 2026-09-02)
+
+**User direction (2026-09-02):** re-scope the app to just a calorie counter for now — Gemini food logging (photo/text), onboarding BMR/TDEE budget, weigh-ins, Health Connect calories-burned. Cut weekly running commitment, consistency grid, run analytics/detail, weekly review, motivation lines, and Open Food Facts search. Exercise logging deferred to a future session, not deleted from history.
+
+- Spec: `docs/superpowers/specs/2026-09-02-calorie-only-scope-down-design.md`
+- Plan: `docs/superpowers/plans/2026-09-02-calorie-only-scope-down.md` (5 tasks — see plan file for full task list)
+- Execution: `superpowers:subagent-driven-development`, worktree `.claude/worktrees/calorie-only-scope-down` (branch `worktree-calorie-only-scope-down`, branched from master `99f6151`)
+- SDD ledger (authoritative progress/rulings record): `.superpowers/sdd/2026-09-02-calorie-only-scope-down/progress.md` inside the worktree
+- Pre-flight scan caught and fixed one plan defect before dispatch: Task 1's `DashboardViewModel.kt` code block was missing `MutableStateFlow`/`asStateFlow` imports it uses — fixed in the plan file directly (see ledger).
+- **Status as of last update:** Task 1 (cut weekly-commitment/consistency/review/motivation) dispatched to a Haiku implementer, running. Tasks 2-5 not started.
+- **To resume:** read the ledger first (`.superpowers/sdd/2026-09-02-calorie-only-scope-down/progress.md` — trust it and `git log` over any stale recollection), then continue the subagent-driven-development loop from wherever the ledger's last `Task N: complete` line leaves off.
