@@ -45,7 +45,6 @@ class AppContainer(private val context: Context) {
         if (healthConnectAvailability == HealthConnectClient.SDK_AVAILABLE) {
             HealthConnectRepository(
                 dataSource = HealthConnectDataSource(HealthConnectManager.getClient(context)),
-                exerciseSessionDao = database.exerciseSessionDao(),
                 syncStateDao = database.syncStateDao(),
                 weighInDao = database.weighInDao()
             )

@@ -34,7 +34,7 @@ import com.suprxsidh.stride.ui.theme.component.StartLineProgress
 import java.time.LocalDate
 
 @Composable
-fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
+fun DashboardScreen(onQuickAdd: () -> Unit) {
     val app = LocalContext.current.applicationContext as StrideApp
     val viewModel: DashboardViewModel = viewModel(factory = viewModelFactory {
         initializer {
@@ -57,7 +57,7 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
     val profile by viewModel.profile.collectAsState()
     val total by viewModel.todayBufferedTotal.collectAsState()
     val series by viewModel.rollingAverageSeries.collectAsState()
-    val todaysRun by viewModel.todaysRun.collectAsState()
+    val caloriesBurnedToday by viewModel.caloriesBurnedToday.collectAsState()
     val hcStatus by viewModel.healthConnectStatus.collectAsState()
     val batteryIgnored by viewModel.batteryOptimizationIgnored.collectAsState()
     val context = LocalContext.current
@@ -79,10 +79,6 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
         Column(modifier = Modifier.padding(top = Spacing.sm)) {
             val budget = profile?.softBudgetKcal ?: 0
 
-            // Hero stat — the one number this whole screen exists to show. Everything else on
-            // the dashboard is secondary to this LED readout (spec §6/§10 point 1).
-            // SPEC.md §2.4: "Label it a 'soft target' in the UI" — the raw number is never
-            // capped here even when over, so the real overage is always visible.
             LedReadout(
                 value = total.toString(),
                 label = if (budget > 0) "kcal logged · soft target $budget" else "kcal logged today",
@@ -96,50 +92,32 @@ fun DashboardScreen(onQuickAdd: () -> Unit, onViewRunHistory: () -> Unit = {}) {
                     modifier = Modifier.padding(top = Spacing.sm),
                 )
             }
+
+            caloriesBurnedToday?.let { burned ->
+                Text(
+                    "Burned today: $burned kcal (Health Connect)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = StrideOnSurfaceMuted,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+            }
         }
 
         StartLineDivider(modifier = Modifier.padding(vertical = Spacing.lg))
         Text("Weight (7-day average)".uppercase(), style = MaterialTheme.typography.titleMedium)
         WeightSparkline(points = series.takeLast(30))
 
-        todaysRun?.let { run ->
-            PunchCardRow(modifier = Modifier.padding(top = Spacing.md)) {
-                Column {
-                    Text("Today's run".uppercase(), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "${run.durationMin} min" + (run.distanceM?.let { " · %.1f km".format(it / 1000.0) } ?: ""),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        "${run.kcalReal} kcal · credited: ${run.kcalCredited} kcal (50%)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = StrideOnSurfaceMuted,
-                    )
-                }
-            }
-        }
-
-        // Unconditional entry point: must not depend on todaysRun being non-null, since the
-        // user can have historical runs synced without a logged one today. Gated on the
-        // repository actually existing so this never leads to `!!` in RunDetailScreen being
-        // reached with a null repository.
-        if (app.container.healthConnectRepository != null) {
-            TextButton(onClick = onViewRunHistory) {
-                Text("View run history")
-            }
-        }
-
         when (hcStatus) {
-            HealthConnectStatus.PERMISSIONS_NEEDED -> PunchCardRow(modifier = Modifier.padding(top = Spacing.xs)) {
+            HealthConnectStatus.PERMISSIONS_NEEDED -> PunchCardRow(modifier = Modifier.padding(top = Spacing.md)) {
                 Column {
-                    Text("Health Connect permissions needed to sync runs and weight.", style = MaterialTheme.typography.bodyMedium)
+                    Text("Health Connect permissions needed to sync calories burned and weight.", style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = {
                         context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
                     }) { Text("Open Health Connect settings") }
                 }
             }
             HealthConnectStatus.UNAVAILABLE -> Text(
-                "Health Connect isn't available on this device — install it from the Play Store to sync runs and weight.",
+                "Health Connect isn't available on this device — install it from the Play Store to sync calories burned and weight.",
                 style = MaterialTheme.typography.bodySmall,
                 color = StrideOnSurfaceMuted,
             )

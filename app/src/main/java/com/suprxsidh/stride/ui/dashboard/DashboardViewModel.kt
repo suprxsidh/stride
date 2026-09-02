@@ -4,8 +4,6 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.suprxsidh.stride.data.calc.DayBoundary
-import com.suprxsidh.stride.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.HealthConnectRepository
@@ -16,11 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -56,13 +49,8 @@ class DashboardViewModel(
     val rollingAverageSeries: StateFlow<List<Pair<LocalDate, Double>>> =
         weightRepository.observeRollingAverageSeries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val todaysRun: StateFlow<ExerciseSessionEntity?> =
-        (healthConnectRepository?.observeExerciseSessions() ?: flowOf(emptyList()))
-            .map { sessions ->
-                val today = DayBoundary.logicalDate(clock()).toString()
-                sessions.filter { it.date == today }.maxByOrNull { it.startTimeEpochMs }
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _caloriesBurnedToday = MutableStateFlow<Int?>(null)
+    val caloriesBurnedToday: StateFlow<Int?> = _caloriesBurnedToday.asStateFlow()
 
     private val _healthConnectStatus = MutableStateFlow(HealthConnectStatus.UNAVAILABLE)
     val healthConnectStatus: StateFlow<HealthConnectStatus> = _healthConnectStatus.asStateFlow()
@@ -70,14 +58,6 @@ class DashboardViewModel(
     private val _batteryOptimizationIgnored = MutableStateFlow(false)
     val batteryOptimizationIgnored: StateFlow<Boolean> = _batteryOptimizationIgnored.asStateFlow()
 
-    /**
-     * Rechecks both device-level status banners. Called once from [init] and again from
-     * DashboardScreen's ON_RESUME lifecycle observer — Health Connect permissions and battery
-     * optimization are both granted via a settings deep link outside the app, so the dashboard
-     * must recheck when the user returns rather than trusting a one-shot value computed at
-     * ViewModel creation (previously `healthConnectStatus` was only ever computed once in `init`
-     * and never rechecked after the user granted permission this way).
-     */
     fun refreshDeviceStatuses() {
         _batteryOptimizationIgnored.value = isIgnoringBatteryOptimizations()
         viewModelScope.launch {
@@ -89,19 +69,22 @@ class DashboardViewModel(
                     else -> HealthConnectStatus.OK
                 }
             } catch (e: Exception) {
-                // Querying granted permissions talks to the Health Connect provider and can fail.
-                // Fall back to the "needs attention" state rather than crashing the dashboard.
                 Log.w("DashboardViewModel", "Failed to read Health Connect permission state", e)
                 HealthConnectStatus.PERMISSIONS_NEEDED
             }
             _healthConnectStatus.value = newStatus
 
-            // Only fire on the transition INTO OK, not on every resume/refresh while already OK --
-            // schedulePeriodic is idempotent (KEEP policy) but triggerOneOff REPLACEs the in-flight
-            // one-off request, so calling it on every foreground would keep restarting sync and it
-            // could never finish if resumes happen faster than a sync cycle.
             if (newStatus == HealthConnectStatus.OK && previousStatus != HealthConnectStatus.OK) {
                 scheduleHealthConnectSync()
+            }
+
+            if (newStatus == HealthConnectStatus.OK) {
+                _caloriesBurnedToday.value = try {
+                    healthConnectRepository?.getTodaysCaloriesBurned()
+                } catch (e: Exception) {
+                    Log.w("DashboardViewModel", "Failed to read today's calories burned from Health Connect", e)
+                    null
+                }
             }
         }
     }
@@ -109,7 +92,6 @@ class DashboardViewModel(
     init {
         refreshDeviceStatuses()
     }
-
 }
 
 enum class HealthConnectStatus { UNAVAILABLE, PERMISSIONS_NEEDED, OK }

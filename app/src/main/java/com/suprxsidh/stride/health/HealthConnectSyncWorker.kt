@@ -19,7 +19,6 @@ class HealthConnectSyncWorker(
     override suspend fun doWork(): Result {
         val repository = repositoryProvider(applicationContext) ?: return Result.success()
         return try {
-            repository.syncExerciseSessions()
             repository.syncWeighIns()
             Result.success()
         } catch (e: Exception) {
