@@ -90,7 +90,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `today buffered total reflects logged entries`() = runTest(testDispatcher) {
-        db.foodEntryDao().insert(FoodEntryEntity(date = "2026-08-10", name = "Test", rawKcal = 200, bufferedKcal = 220, source = "QUICK", offBarcode = null, loggedAt = 1L))
+        db.foodEntryDao().insert(FoodEntryEntity(date = "2026-08-10", name = "Test", rawKcal = 200, bufferedKcal = 220, source = "QUICK", loggedAt = 1L))
         backgroundScope.launch { viewModel.todayBufferedTotal.collect {} }
         testDispatcher.scheduler.runCurrent()
         assertEquals(220, viewModel.todayBufferedTotal.value)

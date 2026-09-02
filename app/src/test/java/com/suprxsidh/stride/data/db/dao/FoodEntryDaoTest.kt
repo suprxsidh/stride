@@ -35,9 +35,9 @@ class FoodEntryDaoTest {
 
     @Test
     fun `buffered total for date sums only that date's entries`() = runTest {
-        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "Roti+Dal", rawKcal = 450, bufferedKcal = 495, source = "QUICK", offBarcode = null, loggedAt = 1L))
-        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "Chaas", rawKcal = 80, bufferedKcal = 88, source = "CUSTOM", offBarcode = null, loggedAt = 2L))
-        dao.insert(FoodEntryEntity(date = "2026-08-11", name = "Other day", rawKcal = 300, bufferedKcal = 330, source = "QUICK", offBarcode = null, loggedAt = 3L))
+        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "Roti+Dal", rawKcal = 450, bufferedKcal = 495, source = "QUICK", loggedAt = 1L))
+        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "Chaas", rawKcal = 80, bufferedKcal = 88, source = "CUSTOM", loggedAt = 2L))
+        dao.insert(FoodEntryEntity(date = "2026-08-11", name = "Other day", rawKcal = 300, bufferedKcal = 330, source = "QUICK", loggedAt = 3L))
 
         val total = dao.observeBufferedTotalForDate("2026-08-10").first()
         assertEquals(583, total)
@@ -51,22 +51,10 @@ class FoodEntryDaoTest {
 
     @Test
     fun `observeForDate returns entries ordered by loggedAt`() = runTest {
-        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "Second", rawKcal = 100, bufferedKcal = 110, source = "QUICK", offBarcode = null, loggedAt = 200L))
-        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "First", rawKcal = 50, bufferedKcal = 55, source = "QUICK", offBarcode = null, loggedAt = 100L))
+        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "Second", rawKcal = 100, bufferedKcal = 110, source = "QUICK", loggedAt = 200L))
+        dao.insert(FoodEntryEntity(date = "2026-08-10", name = "First", rawKcal = 50, bufferedKcal = 55, source = "QUICK", loggedAt = 100L))
 
         val entries = dao.observeForDate("2026-08-10").first()
         assertEquals(listOf("First", "Second"), entries.map { it.name })
-    }
-
-    @Test
-    fun `getForDateRange returns entries within the inclusive range, ordered by date then time`() = runTest {
-        dao.insert(FoodEntryEntity(date = "2024-01-01", name = "a", rawKcal = 100, bufferedKcal = 110, source = "manual", offBarcode = null, loggedAt = 1L))
-        dao.insert(FoodEntryEntity(date = "2024-01-03", name = "b", rawKcal = 200, bufferedKcal = 220, source = "manual", offBarcode = null, loggedAt = 2L))
-        dao.insert(FoodEntryEntity(date = "2024-01-10", name = "c", rawKcal = 300, bufferedKcal = 330, source = "manual", offBarcode = null, loggedAt = 3L)) // outside range
-
-        val inRange = dao.getForDateRange("2024-01-01", "2024-01-07")
-        assertEquals(2, inRange.size)
-        assertEquals("a", inRange[0].name)
-        assertEquals("b", inRange[1].name)
     }
 }

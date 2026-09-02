@@ -11,6 +11,5 @@ data class FoodEntryEntity(
     val rawKcal: Int,
     val bufferedKcal: Int,
     val source: String,
-    val offBarcode: String?,
     val loggedAt: Long
 )

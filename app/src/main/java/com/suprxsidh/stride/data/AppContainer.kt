@@ -12,8 +12,6 @@ import com.suprxsidh.stride.data.repository.HealthConnectRepository
 import com.suprxsidh.stride.data.repository.SettingsRepository
 import com.suprxsidh.stride.data.repository.UserProfileRepository
 import com.suprxsidh.stride.data.repository.WeightRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsServiceFactory
 import com.suprxsidh.stride.health.HealthConnectDataSource
 import com.suprxsidh.stride.health.HealthConnectManager
 
@@ -24,10 +22,6 @@ class AppContainer(private val context: Context) {
     val weightRepository = WeightRepository(database.weighInDao())
     val settingsRepository = SettingsRepository(database.appSettingsDao())
     val adaptiveBudgetRepository = AdaptiveBudgetRepository(database.userProfileDao(), database.weighInDao(), settingsRepository)
-    val openFoodFactsRepository = OpenFoodFactsRepository(
-        OpenFoodFactsServiceFactory.create(),
-        database.offCacheDao()
-    )
     val geminiFoodRepository = GeminiFoodRepository(
         estimator = GeminiFoodEstimator(GeminiServiceFactory.create()),
         settingsRepository = settingsRepository,
