@@ -38,39 +38,27 @@ class SyncStateDaoTest {
 
     @Test
     fun `upsert then get returns stored token`() = runTest {
-        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "token-abc", lastSyncEpochMs = 1_700_000_000_000L))
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "token-abc", lastWeightSyncEpochMs = 1_700_000_000_000L))
         val state = dao.get()
         assertEquals("token-abc", state?.hcChangesToken)
     }
 
     @Test
     fun `second upsert replaces the single row`() = runTest {
-        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "first", lastSyncEpochMs = 1L))
-        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "second", lastSyncEpochMs = 2L))
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "first", lastWeightSyncEpochMs = 1L))
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "second", lastWeightSyncEpochMs = 2L))
         assertEquals("second", dao.get()?.hcChangesToken)
     }
 
     @Test
-    fun `watermark setters create the row when none exists`() = runTest {
-        dao.setExerciseSyncWatermark(111L)
-        assertEquals(111L, dao.get()?.lastSyncEpochMs)
-        assertNull(dao.get()?.lastWeightSyncEpochMs)
-    }
-
-    @Test
-    fun `the two watermarks advance independently and do not clobber each other`() = runTest {
-        dao.setExerciseSyncWatermark(111L)
+    fun `weight watermark setter creates the row when none exists`() = runTest {
         dao.setWeightSyncWatermark(222L)
-        dao.setExerciseSyncWatermark(333L)
-
-        val state = dao.get()!!
-        assertEquals(333L, state.lastSyncEpochMs)
-        assertEquals(222L, state.lastWeightSyncEpochMs)
+        assertEquals(222L, dao.get()?.lastWeightSyncEpochMs)
     }
 
     @Test
-    fun `advancing a watermark preserves the changes token`() = runTest {
-        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "token-abc", lastSyncEpochMs = null))
+    fun `advancing the weight watermark preserves the changes token`() = runTest {
+        dao.upsert(SyncStateEntity(id = 1, hcChangesToken = "token-abc", lastWeightSyncEpochMs = null))
         dao.setWeightSyncWatermark(999L)
         assertEquals("token-abc", dao.get()?.hcChangesToken)
         assertEquals(999L, dao.get()?.lastWeightSyncEpochMs)

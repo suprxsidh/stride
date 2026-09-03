@@ -192,7 +192,7 @@ new launcher icon is actually packaged into the APK. **Not verified on-device** 
 caveat as every other unverified item in this file; the launcher icon, over-budget bar color, goal
 weight readout, and all three new error messages have only been compiled, never looked at on screen.
 
-## Phase 5: Calorie-only scope-down (IN PROGRESS, started 2026-09-02)
+## Phase 5: Calorie-only scope-down: COMPLETE (2026-09-02)
 
 **User direction (2026-09-02):** re-scope the app to just a calorie counter for now — Gemini food logging (photo/text), onboarding BMR/TDEE budget, weigh-ins, Health Connect calories-burned. Cut weekly running commitment, consistency grid, run analytics/detail, weekly review, motivation lines, and Open Food Facts search. Exercise logging deferred to a future session, not deleted from history.
 
@@ -200,6 +200,9 @@ weight readout, and all three new error messages have only been compiled, never 
 - Plan: `docs/superpowers/plans/2026-09-02-calorie-only-scope-down.md` (5 tasks — see plan file for full task list)
 - Execution: `superpowers:subagent-driven-development`, worktree `.claude/worktrees/calorie-only-scope-down` (branch `worktree-calorie-only-scope-down`, branched from master `99f6151`)
 - SDD ledger (authoritative progress/rulings record): `.superpowers/sdd/2026-09-02-calorie-only-scope-down/progress.md` inside the worktree
-- Pre-flight scan caught and fixed one plan defect before dispatch: Task 1's `DashboardViewModel.kt` code block was missing `MutableStateFlow`/`asStateFlow` imports it uses — fixed in the plan file directly (see ledger).
-- **Status as of last update:** Task 1 (cut weekly-commitment/consistency/review/motivation) implementer reported DONE (commit 9e4e4cc), build/tests green per its report — **but the task review has NOT run yet**. Tasks 2-5 not started. On resume: generate the review package for 99f6151..9e4e4cc, dispatch the task reviewer, run the fix loop if needed, THEN mark Task 1 complete in the ledger before moving to Task 2.
-- **To resume:** read the ledger first (`.superpowers/sdd/2026-09-02-calorie-only-scope-down/progress.md` — trust it and `git log` over any stale recollection), then continue the subagent-driven-development loop from wherever the ledger's last `Task N: complete` line leaves off.
+- All 5 tasks complete and reviewed; final whole-branch review passed with one fix wave (manifest
+  permission scope, dead exercise-sync watermark code removed with a v9→v10 DB bump, this
+  BUILD_PLAN.md section, and a Health-Connect-permission-revoked UI staleness fix in
+  `DashboardViewModel.kt`) — see
+  `.superpowers/sdd/2026-09-02-calorie-only-scope-down/final-review-fix-report.md` for details.
+  Branch is merge-ready.

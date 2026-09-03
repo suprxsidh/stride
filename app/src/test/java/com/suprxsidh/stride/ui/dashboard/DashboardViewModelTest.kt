@@ -170,6 +170,26 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `caloriesBurnedToday clears when Health Connect permission is revoked mid-session`() = runTest(testDispatcher) {
+        var permissionsGranted = true
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            hasPermissions = { permissionsGranted },
+            caloriesBurned = 1380
+        )
+        backgroundScope.launch { viewModel.caloriesBurnedToday.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1380, viewModel.caloriesBurnedToday.value)
+
+        permissionsGranted = false
+        viewModel.refreshDeviceStatuses()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.caloriesBurnedToday.value)
+    }
+
+    @Test
     fun `batteryOptimizationIgnored reflects the lambda's value on load`() = runTest(testDispatcher) {
         val viewModel = buildViewModel(
             clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },

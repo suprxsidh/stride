@@ -85,6 +85,12 @@ class DashboardViewModel(
                     Log.w("DashboardViewModel", "Failed to read today's calories burned from Health Connect", e)
                     null
                 }
+            } else {
+                // Permission can be revoked mid-session (e.g. via the system Health Connect
+                // settings) without killing the app. Clear any previously read value so the
+                // dashboard doesn't keep showing a stale "burned today" reading once we can no
+                // longer confirm it's current.
+                _caloriesBurnedToday.value = null
             }
         }
     }

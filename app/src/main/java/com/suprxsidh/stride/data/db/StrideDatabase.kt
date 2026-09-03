@@ -32,7 +32,11 @@ import com.suprxsidh.stride.data.db.entity.WeighInEntity
     // v9: OffCacheEntity removed and FoodEntryEntity lost offBarcode -- Open Food Facts search is
     // cut, Gemini (photo or text) is now the only food-logging path. fallbackToDestructiveMigration()
     // below handles the upgrade, same convention as every prior version bump.
-    version = 9,
+    // v10: SyncStateEntity lost lastSyncEpochMs -- the exercise-session watermark it backed was
+    // dead code once the exercise sync it fed was cut; only the weigh-in watermark remains.
+    // fallbackToDestructiveMigration() below handles the upgrade, same convention as every prior
+    // version bump.
+    version = 10,
     exportSchema = false
 )
 abstract class StrideDatabase : RoomDatabase() {

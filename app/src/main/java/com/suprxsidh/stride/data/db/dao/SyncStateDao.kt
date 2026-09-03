@@ -16,26 +16,16 @@ interface SyncStateDao {
     suspend fun upsert(state: SyncStateEntity)
 
     /**
-     * Advances the exercise-session watermark only, preserving the weigh-in watermark.
+     * Advances the weigh-in watermark, preserving the Health Connect changes token.
      * Done inside a transaction so a concurrent writer of the other field can't be clobbered
      * by a stale whole-row REPLACE.
      */
-    @Transaction
-    suspend fun setExerciseSyncWatermark(epochMs: Long) {
-        val current = get()
-        upsert(
-            current?.copy(lastSyncEpochMs = epochMs)
-                ?: SyncStateEntity(hcChangesToken = null, lastSyncEpochMs = epochMs, lastWeightSyncEpochMs = null)
-        )
-    }
-
-    /** Advances the weigh-in watermark only, preserving the exercise-session watermark. */
     @Transaction
     suspend fun setWeightSyncWatermark(epochMs: Long) {
         val current = get()
         upsert(
             current?.copy(lastWeightSyncEpochMs = epochMs)
-                ?: SyncStateEntity(hcChangesToken = null, lastSyncEpochMs = null, lastWeightSyncEpochMs = epochMs)
+                ?: SyncStateEntity(hcChangesToken = null, lastWeightSyncEpochMs = epochMs)
         )
     }
 }
