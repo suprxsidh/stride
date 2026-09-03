@@ -9,12 +9,10 @@ import com.suprxsidh.stride.ai.gemini.GeminiFoodEstimate
 import com.suprxsidh.stride.data.db.dao.MAX_PINNED_SNACKS
 import com.suprxsidh.stride.data.db.entity.CustomFoodEntity
 import com.suprxsidh.stride.data.db.entity.FoodEntryEntity
-import com.suprxsidh.stride.data.db.entity.OffCacheEntity
 import com.suprxsidh.stride.data.db.entity.PendingDraftEntity
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.GeminiEstimateResult
 import com.suprxsidh.stride.data.repository.GeminiFoodRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -23,7 +21,6 @@ import java.io.File
 
 class FoodLogViewModel(
     private val foodRepository: FoodRepository,
-    private val offRepository: OpenFoodFactsRepository,
     private val geminiFoodRepository: GeminiFoodRepository
 ) : ViewModel() {
 
@@ -43,11 +40,6 @@ class FoodLogViewModel(
     var quickAddError by mutableStateOf<String?>(null)
         private set
 
-    var offQuery by mutableStateOf("")
-    var offResults by mutableStateOf<List<OffCacheEntity>>(emptyList())
-    var offSearchInFlight by mutableStateOf(false)
-    var offSearchedOnce by mutableStateOf(false)
-
     var customFoodName by mutableStateOf("")
     var customFoodKcal by mutableStateOf("")
     var customFoodServingLabel by mutableStateOf("")
@@ -59,9 +51,7 @@ class FoodLogViewModel(
     /**
      * Set when [saveCustomFood] was asked to pin a food but the app already has
      * [MAX_PINNED_SNACKS] pinned — the food still saves (unpinned) rather than being dropped
-     * entirely. Previously this case failed with zero feedback: the row silently never appeared
-     * in the pinned "Snacks" list (capped at [MAX_PINNED_SNACKS] there) even though nothing told
-     * the user why.
+     * entirely.
      */
     var pinCapMessage by mutableStateOf<String?>(null)
         private set
@@ -138,24 +128,6 @@ class FoodLogViewModel(
 
     fun logPinned(food: CustomFoodEntity) {
         viewModelScope.launch { foodRepository.logCustomFood(food, servings = 1.0) }
-    }
-
-    fun searchOff() {
-        val query = offQuery
-        if (query.isBlank()) return
-        viewModelScope.launch {
-            offSearchInFlight = true
-            try {
-                offResults = offRepository.search(query)
-                offSearchedOnce = true
-            } finally {
-                offSearchInFlight = false
-            }
-        }
-    }
-
-    fun logOffResult(item: OffCacheEntity) {
-        viewModelScope.launch { foodRepository.logOffProduct(item.productName, item.kcalPerServing, item.code) }
     }
 
     fun saveCustomFood(isPinned: Boolean) {

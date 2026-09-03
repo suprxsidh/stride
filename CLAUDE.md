@@ -75,3 +75,15 @@ after the HC sync-scheduling fix merged, then merged to master itself after a wh
 - **Never verified on a real device at any point** — the LED-readout glow-fake, punch-card notch
   shape, and nav-flag glyph have only ever been compiled (`compileDebugKotlin`, `assembleDebug`),
   never rendered on screen. This is the single biggest open risk on this whole redesign.
+
+## Calorie-only scope-down (2026-09-02, COMPLETE)
+
+App re-scoped to a pure calorie counter per user direction: Gemini food logging (photo/text) + onboarding BMR/TDEE budget + weigh-ins + Health Connect calories-burned read + weekly adaptive budget recompute. Cut: weekly running commitment, consistency grid, run analytics/detail, weekly review, motivation lines, Open Food Facts search. See `docs/superpowers/specs/2026-09-02-calorie-only-scope-down-design.md` and `docs/superpowers/plans/2026-09-02-calorie-only-scope-down.md`. Exercise logging is deferred, not deleted from history — see `future_plans.md`.
+
+Technical implementation details:
+- Health Connect's `REQUIRED_PERMISSIONS` covers only `TotalCaloriesBurnedRecord` (read) and `WeightRecord` (read+write) — no more Exercise/Distance/HeartRate. Any future exercise-tracking work re-adds those deliberately, not by assuming they're still there.
+- `HealthConnectRepository` no longer has `syncExerciseSessions()`/`observeExerciseSessions()` — it exposes `getTodaysCaloriesBurned()` instead, reading the whole logical day's total (basal + active) directly, not a per-exercise-session credit.
+- Open Food Facts search is gone — Gemini (photo or text) is the only food-logging path. `FoodEntryEntity.offBarcode` no longer exists.
+- `StrideDatabase` version climbs 6→9 across this scope-down's tasks (still `fallbackToDestructiveMigration()`, no real `Migration` objects — same convention as every prior bump).
+
+**Process note for future SDD plans on this project:** a plan step that says "add these imports" as prose *after* a fenced code block gets missed — the pre-flight scan for this plan caught exactly that (Task 1's `DashboardViewModel.kt`). Put every import the code block actually needs inside the code block itself, never in a trailing note.

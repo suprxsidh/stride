@@ -1,9 +1,6 @@
 package com.suprxsidh.stride.health
 
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.records.DistanceRecord
-import androidx.health.connect.client.records.ExerciseSessionRecord
-import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Metadata
@@ -15,45 +12,13 @@ import java.time.ZoneId
 
 class HealthConnectDataSource(private val client: HealthConnectClient) : HealthDataSource {
 
-    override suspend fun readExerciseSessions(since: Instant): List<RemoteExerciseSession> {
-        val now = Instant.now()
-        val sessions = client.readRecords(
+    override suspend fun readTotalCaloriesBurned(since: Instant, until: Instant): Int {
+        return client.readRecords(
             ReadRecordsRequest(
-                recordType = ExerciseSessionRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(since, now)
+                recordType = TotalCaloriesBurnedRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(since, until)
             )
-        ).records
-
-        return sessions.map { session ->
-            val range = TimeRangeFilter.between(session.startTime, session.endTime)
-
-            val distanceMeters = client.readRecords(
-                ReadRecordsRequest(recordType = DistanceRecord::class, timeRangeFilter = range)
-            ).records.sumOf { it.distance.inMeters }.takeIf { it > 0.0 }
-
-            val heartRateSamples = client.readRecords(
-                ReadRecordsRequest(recordType = HeartRateRecord::class, timeRangeFilter = range)
-            ).records.flatMap { it.samples }.map { it.beatsPerMinute.toInt() }
-
-            // Real calorie burn: sum of TotalCaloriesBurnedRecord in the session window.
-            // Fall back to 0 if the watch/Samsung Health didn't report calories for this session.
-            val kcalReal = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = range
-                )
-            ).records.sumOf { it.energy.inKilocalories }.toInt()
-
-            RemoteExerciseSession(
-                hcRecordId = session.metadata.id,
-                exerciseType = session.exerciseType.toString(),
-                startTime = session.startTime,
-                endTime = session.endTime,
-                distanceMeters = distanceMeters,
-                kcalReal = kcalReal,
-                heartRateSamplesBpm = heartRateSamples
-            )
-        }
+        ).records.sumOf { it.energy.inKilocalories }.toInt()
     }
 
     override suspend fun readNewWeightRecords(since: Instant): List<RemoteWeightRecord> {

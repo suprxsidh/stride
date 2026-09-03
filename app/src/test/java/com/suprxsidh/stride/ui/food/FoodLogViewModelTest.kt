@@ -14,8 +14,6 @@ import com.suprxsidh.stride.data.db.entity.CustomFoodEntity
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.GeminiFoodRepository
 import com.suprxsidh.stride.data.repository.SettingsRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsServiceFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -24,8 +22,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -42,10 +38,8 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class FoodLogViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
-    private lateinit var server: MockWebServer
     private lateinit var db: StrideDatabase
     private lateinit var foodRepository: FoodRepository
-    private lateinit var offRepository: OpenFoodFactsRepository
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var viewModel: FoodLogViewModel
 
@@ -63,30 +57,23 @@ class FoodLogViewModelTest {
             foodRepository = foodRepository,
             pendingDraftDao = db.pendingDraftDao()
         )
-        return FoodLogViewModel(foodRepository, offRepository, geminiFoodRepository)
+        return FoodLogViewModel(foodRepository, geminiFoodRepository)
     }
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        server = MockWebServer()
-        server.start()
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), StrideDatabase::class.java)
             .setQueryExecutor(java.util.concurrent.Executor { it.run() })
             .setTransactionExecutor(java.util.concurrent.Executor { it.run() })
             .allowMainThreadQueries().build()
         foodRepository = FoodRepository(db.foodEntryDao(), db.customFoodDao())
-        offRepository = OpenFoodFactsRepository(
-            OpenFoodFactsServiceFactory.create(baseUrl = server.url("/").toString()),
-            db.offCacheDao()
-        )
         settingsRepository = SettingsRepository(db.appSettingsDao())
         viewModel = buildViewModel()
     }
 
     @After
     fun tearDown() {
-        server.shutdown()
         db.close()
         Dispatchers.resetMain()
     }
@@ -129,28 +116,6 @@ class FoodLogViewModelTest {
         ).first()
         assertEquals(1, all.size)
         assertEquals(110, all[0].bufferedKcal)
-    }
-
-    @Test
-    fun `searchOff populates results and marks a search as having happened`() = runTest(testDispatcher) {
-        server.enqueue(MockResponse().setBody("""{"products": [{"code": "123", "product_name": "Test", "nutriments": {"energy-kcal_serving": 50.0}}]}""").setResponseCode(200))
-        viewModel.offQuery = "test"
-        viewModel.searchOff()
-        testDispatcher.scheduler.advanceUntilIdle()
-        // The OkHttp/Retrofit call hits MockWebServer on a real background thread that isn't
-        // driven by the virtual test scheduler, so the response can still be in flight the
-        // instant advanceUntilIdle() returns. Poll (bounded) until the real I/O lands, flushing
-        // the scheduler each time so the resumed continuation actually runs.
-        var attempts = 0
-        while (viewModel.offSearchInFlight && attempts < 200) {
-            Thread.sleep(5)
-            testDispatcher.scheduler.advanceUntilIdle()
-            attempts++
-        }
-
-        assertEquals(1, viewModel.offResults.size)
-        assertTrue(viewModel.offSearchedOnce)
-        assertEquals(false, viewModel.offSearchInFlight)
     }
 
     @Test

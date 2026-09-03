@@ -19,12 +19,6 @@ class SettingsViewModel(
     val geminiApiKey: StateFlow<String?> =
         settingsRepository.observeGeminiApiKey().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val weeklyRunTarget: StateFlow<Int> =
-        settingsRepository.observeWeeklyRunTarget().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 4)
-
-    val weeklyRunFloor: StateFlow<Int> =
-        settingsRepository.observeWeeklyRunFloor().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 3)
-
     private val _manualBudgetOverrideKcal = MutableStateFlow<Int?>(null)
     val manualBudgetOverrideKcal: StateFlow<Int?> = _manualBudgetOverrideKcal.asStateFlow()
 
@@ -44,33 +38,6 @@ class SettingsViewModel(
 
     private companion object {
         const val MIN_MANUAL_BUDGET_KCAL = 1200
-    }
-
-    // Weekly run target/floor are user-typed integers with no UI-level input restriction, and a
-    // bad value here (0, negative, floor > target) would permanently wedge the floor/target math
-    // in WeeklyCommitmentCalc with no recovery path short of reinstalling. Clamp to a sane 1..7
-    // range (a week has 7 days) and preserve the floor <= target invariant by nudging whichever
-    // value wasn't just edited, using the other's *current* StateFlow value.
-    fun saveWeeklyRunTarget(target: Int) {
-        val clampedTarget = target.coerceIn(1, 7)
-        viewModelScope.launch {
-            val currentFloor = weeklyRunFloor.value
-            settingsRepository.setWeeklyRunTarget(clampedTarget)
-            if (currentFloor > clampedTarget) {
-                settingsRepository.setWeeklyRunFloor(clampedTarget)
-            }
-        }
-    }
-
-    fun saveWeeklyRunFloor(floor: Int) {
-        val clampedFloor = floor.coerceIn(1, 7)
-        viewModelScope.launch {
-            val currentTarget = weeklyRunTarget.value
-            settingsRepository.setWeeklyRunFloor(clampedFloor)
-            if (clampedFloor > currentTarget) {
-                settingsRepository.setWeeklyRunTarget(clampedFloor)
-            }
-        }
     }
 
     fun saveManualBudgetOverride(kcal: Int) {

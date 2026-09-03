@@ -5,10 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.suprxsidh.stride.ui.consistency.ConsistencyScreen
 import com.suprxsidh.stride.ui.dashboard.DashboardScreen
 import com.suprxsidh.stride.ui.food.FoodLogScreen
-import com.suprxsidh.stride.ui.health.RunDetailScreen
 import com.suprxsidh.stride.ui.onboarding.OnboardingScreen
 import com.suprxsidh.stride.ui.settings.SettingsScreen
 import com.suprxsidh.stride.ui.weight.WeightScreen
@@ -24,15 +22,10 @@ fun StrideNavHost(navController: NavHostController, startDestination: String, mo
             })
         }
         composable(Routes.DASHBOARD) {
-            DashboardScreen(
-                onQuickAdd = { navController.navigate(Routes.FOOD_LOG) },
-                onViewRunHistory = { navController.navigate(Routes.RUN_DETAIL) }
-            )
+            DashboardScreen(onQuickAdd = { navController.navigate(Routes.FOOD_LOG) })
         }
         composable(Routes.FOOD_LOG) { FoodLogScreen() }
         composable(Routes.WEIGHT) { WeightScreen() }
-        composable(Routes.RUN_DETAIL) { RunDetailScreen() }
         composable(Routes.SETTINGS) { SettingsScreen() }
-        composable(Routes.CONSISTENCY) { ConsistencyScreen() }
     }
 }

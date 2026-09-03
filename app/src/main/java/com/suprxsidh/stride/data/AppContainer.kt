@@ -5,18 +5,13 @@ import androidx.health.connect.client.HealthConnectClient
 import com.suprxsidh.stride.ai.gemini.GeminiFoodEstimator
 import com.suprxsidh.stride.ai.gemini.GeminiServiceFactory
 import com.suprxsidh.stride.data.db.StrideDatabase
+import com.suprxsidh.stride.data.repository.AdaptiveBudgetRepository
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.GeminiFoodRepository
 import com.suprxsidh.stride.data.repository.HealthConnectRepository
-import com.suprxsidh.stride.data.repository.AdaptiveBudgetRepository
-import com.suprxsidh.stride.data.repository.ConsistencyRepository
 import com.suprxsidh.stride.data.repository.SettingsRepository
 import com.suprxsidh.stride.data.repository.UserProfileRepository
-import com.suprxsidh.stride.data.repository.WeeklyCommitmentRepository
-import com.suprxsidh.stride.data.repository.WeeklyReviewRepository
 import com.suprxsidh.stride.data.repository.WeightRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsRepository
-import com.suprxsidh.stride.food.off.OpenFoodFactsServiceFactory
 import com.suprxsidh.stride.health.HealthConnectDataSource
 import com.suprxsidh.stride.health.HealthConnectManager
 
@@ -26,22 +21,7 @@ class AppContainer(private val context: Context) {
     val foodRepository = FoodRepository(database.foodEntryDao(), database.customFoodDao())
     val weightRepository = WeightRepository(database.weighInDao())
     val settingsRepository = SettingsRepository(database.appSettingsDao())
-    val weeklyCommitmentRepository = WeeklyCommitmentRepository(database.exerciseSessionDao())
     val adaptiveBudgetRepository = AdaptiveBudgetRepository(database.userProfileDao(), database.weighInDao(), settingsRepository)
-    val weeklyReviewRepository = WeeklyReviewRepository(
-        weeklyReviewDao = database.weeklyReviewDao(),
-        weeklyCommitmentRepository = weeklyCommitmentRepository,
-        adaptiveBudgetRepository = adaptiveBudgetRepository,
-        foodEntryDao = database.foodEntryDao(),
-        weighInDao = database.weighInDao(),
-        userProfileDao = database.userProfileDao(),
-        settingsRepository = settingsRepository
-    )
-    val consistencyRepository = ConsistencyRepository(database.exerciseSessionDao(), database.foodEntryDao(), database.userProfileDao())
-    val openFoodFactsRepository = OpenFoodFactsRepository(
-        OpenFoodFactsServiceFactory.create(),
-        database.offCacheDao()
-    )
     val geminiFoodRepository = GeminiFoodRepository(
         estimator = GeminiFoodEstimator(GeminiServiceFactory.create()),
         settingsRepository = settingsRepository,
@@ -59,7 +39,6 @@ class AppContainer(private val context: Context) {
         if (healthConnectAvailability == HealthConnectClient.SDK_AVAILABLE) {
             HealthConnectRepository(
                 dataSource = HealthConnectDataSource(HealthConnectManager.getClient(context)),
-                exerciseSessionDao = database.exerciseSessionDao(),
                 syncStateDao = database.syncStateDao(),
                 weighInDao = database.weighInDao()
             )

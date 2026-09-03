@@ -191,3 +191,18 @@ optional/additive). `./gradlew assembleDebug` succeeds; confirmed via `aapt dump
 new launcher icon is actually packaged into the APK. **Not verified on-device** — same standing
 caveat as every other unverified item in this file; the launcher icon, over-budget bar color, goal
 weight readout, and all three new error messages have only been compiled, never looked at on screen.
+
+## Phase 5: Calorie-only scope-down: COMPLETE (2026-09-02)
+
+**User direction (2026-09-02):** re-scope the app to just a calorie counter for now — Gemini food logging (photo/text), onboarding BMR/TDEE budget, weigh-ins, Health Connect calories-burned. Cut weekly running commitment, consistency grid, run analytics/detail, weekly review, motivation lines, and Open Food Facts search. Exercise logging deferred to a future session, not deleted from history.
+
+- Spec: `docs/superpowers/specs/2026-09-02-calorie-only-scope-down-design.md`
+- Plan: `docs/superpowers/plans/2026-09-02-calorie-only-scope-down.md` (5 tasks — see plan file for full task list)
+- Execution: `superpowers:subagent-driven-development`, worktree `.claude/worktrees/calorie-only-scope-down` (branch `worktree-calorie-only-scope-down`, branched from master `99f6151`)
+- SDD ledger (authoritative progress/rulings record): `.superpowers/sdd/2026-09-02-calorie-only-scope-down/progress.md` inside the worktree
+- All 5 tasks complete and reviewed; final whole-branch review passed with one fix wave (manifest
+  permission scope, dead exercise-sync watermark code removed with a v9→v10 DB bump, this
+  BUILD_PLAN.md section, and a Health-Connect-permission-revoked UI staleness fix in
+  `DashboardViewModel.kt`) — see
+  `.superpowers/sdd/2026-09-02-calorie-only-scope-down/final-review-fix-report.md` for details.
+  Branch is merge-ready.

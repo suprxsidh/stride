@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -52,7 +51,6 @@ fun FoodLogScreen() {
         initializer {
             FoodLogViewModel(
                 app.container.foodRepository,
-                app.container.openFoodFactsRepository,
                 app.container.geminiFoodRepository
             )
         }
@@ -160,27 +158,6 @@ fun FoodLogScreen() {
         item { Button(onClick = { viewModel.logQuickAdd() }) { Text("Add") } }
         viewModel.quickAddError?.let { error ->
             item { Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-        }
-
-        item { StartLineDivider(modifier = Modifier.padding(vertical = Spacing.sm)) }
-        item { Text("Search packaged foods (Open Food Facts)".uppercase(), style = MaterialTheme.typography.titleMedium) }
-        item {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                OutlinedTextField(value = viewModel.offQuery, onValueChange = { viewModel.offQuery = it }, label = { Text("Search") }, modifier = Modifier.fillMaxWidth())
-            }
-        }
-        item { Button(onClick = { viewModel.searchOff() }) { Text("Search") } }
-        if (viewModel.offSearchInFlight) {
-            item { CircularProgressIndicator() }
-        } else if (viewModel.offSearchedOnce && viewModel.offResults.isEmpty()) {
-            item { Text("No results — check spelling or your connection.", color = StrideOnSurfaceMuted) }
-        }
-        items(viewModel.offResults) { result ->
-            PunchCardRow(
-                trailing = { Button(onClick = { viewModel.logOffResult(result) }) { Text("Log") } },
-            ) {
-                Text("${result.productName} (${result.kcalPerServing} kcal / ${result.servingLabel})", style = MaterialTheme.typography.bodyMedium)
-            }
         }
 
         item { StartLineDivider(modifier = Modifier.padding(vertical = Spacing.sm)) }

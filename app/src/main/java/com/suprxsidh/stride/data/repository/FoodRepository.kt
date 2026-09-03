@@ -33,14 +33,13 @@ class FoodRepository(
         }
     }.distinctUntilChanged()
 
-    private suspend fun log(name: String, rawKcal: Int, source: String, barcode: String? = null): FoodEntryEntity {
+    private suspend fun log(name: String, rawKcal: Int, source: String): FoodEntryEntity {
         val entity = FoodEntryEntity(
             date = todayKey(),
             name = name,
             rawKcal = rawKcal,
             bufferedKcal = CalorieMath.bufferedKcal(rawKcal),
             source = source,
-            offBarcode = barcode,
             loggedAt = nowMillis()
         )
         val id = foodEntryDao.insert(entity)
@@ -51,9 +50,6 @@ class FoodRepository(
 
     suspend fun logCustomFood(food: CustomFoodEntity, servings: Double): FoodEntryEntity =
         log(food.name, (food.kcalPerServing * servings).roundToInt(), "CUSTOM")
-
-    suspend fun logOffProduct(name: String, rawKcal: Int, barcode: String): FoodEntryEntity =
-        log(name, rawKcal, "OFF", barcode)
 
     suspend fun logGeminiEstimate(name: String, rawKcal: Int): FoodEntryEntity =
         log(name, rawKcal, "GEMINI")

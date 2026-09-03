@@ -6,24 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.suprxsidh.stride.data.db.dao.AppSettingsDao
 import com.suprxsidh.stride.data.db.dao.CustomFoodDao
-import com.suprxsidh.stride.data.db.dao.ExerciseSessionDao
 import com.suprxsidh.stride.data.db.dao.FoodEntryDao
-import com.suprxsidh.stride.data.db.dao.OffCacheDao
 import com.suprxsidh.stride.data.db.dao.PendingDraftDao
 import com.suprxsidh.stride.data.db.dao.SyncStateDao
 import com.suprxsidh.stride.data.db.dao.UserProfileDao
 import com.suprxsidh.stride.data.db.dao.WeighInDao
-import com.suprxsidh.stride.data.db.dao.WeeklyReviewDao
 import com.suprxsidh.stride.data.db.entity.AppSettingsEntity
 import com.suprxsidh.stride.data.db.entity.CustomFoodEntity
-import com.suprxsidh.stride.data.db.entity.ExerciseSessionEntity
 import com.suprxsidh.stride.data.db.entity.FoodEntryEntity
-import com.suprxsidh.stride.data.db.entity.OffCacheEntity
 import com.suprxsidh.stride.data.db.entity.PendingDraftEntity
 import com.suprxsidh.stride.data.db.entity.SyncStateEntity
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
 import com.suprxsidh.stride.data.db.entity.WeighInEntity
-import com.suprxsidh.stride.data.db.entity.WeeklyReviewEntity
 
 @Database(
     entities = [
@@ -31,19 +25,18 @@ import com.suprxsidh.stride.data.db.entity.WeeklyReviewEntity
         FoodEntryEntity::class,
         CustomFoodEntity::class,
         WeighInEntity::class,
-        OffCacheEntity::class,
-        ExerciseSessionEntity::class,
         SyncStateEntity::class,
         AppSettingsEntity::class,
-        PendingDraftEntity::class,
-        WeeklyReviewEntity::class
+        PendingDraftEntity::class
     ],
-    // v5: WeeklyReviewEntity added; AppSettingsEntity gained weekly commitment + review fields.
-    // v6: AppSettingsEntity gained lastMotivationDate (final-review fix wave, gates the
-    // motivation line to once per logical day). No Migration object — same convention as v4->v5:
-    // fallbackToDestructiveMigration() below handles the upgrade for this single-user, sideloaded,
-    // no-cloud-sync app.
-    version = 6,
+    // v9: OffCacheEntity removed and FoodEntryEntity lost offBarcode -- Open Food Facts search is
+    // cut, Gemini (photo or text) is now the only food-logging path. fallbackToDestructiveMigration()
+    // below handles the upgrade, same convention as every prior version bump.
+    // v10: SyncStateEntity lost lastSyncEpochMs -- the exercise-session watermark it backed was
+    // dead code once the exercise sync it fed was cut; only the weigh-in watermark remains.
+    // fallbackToDestructiveMigration() below handles the upgrade, same convention as every prior
+    // version bump.
+    version = 10,
     exportSchema = false
 )
 abstract class StrideDatabase : RoomDatabase() {
@@ -51,12 +44,9 @@ abstract class StrideDatabase : RoomDatabase() {
     abstract fun foodEntryDao(): FoodEntryDao
     abstract fun customFoodDao(): CustomFoodDao
     abstract fun weighInDao(): WeighInDao
-    abstract fun offCacheDao(): OffCacheDao
-    abstract fun exerciseSessionDao(): ExerciseSessionDao
     abstract fun syncStateDao(): SyncStateDao
     abstract fun appSettingsDao(): AppSettingsDao
     abstract fun pendingDraftDao(): PendingDraftDao
-    abstract fun weeklyReviewDao(): WeeklyReviewDao
 
     companion object {
         @Volatile private var INSTANCE: StrideDatabase? = null
