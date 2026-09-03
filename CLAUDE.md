@@ -86,3 +86,9 @@ App is being re-scoped to a pure calorie counter per user direction. Once this l
 - Exercise/running/weekly-commitment code is deferred, not deleted from git history — see `future_plans.md` for exactly which commits to resume from if this comes back.
 
 **Process note for future SDD plans on this project:** a plan step that says "add these imports" as prose *after* a fenced code block gets missed — the pre-flight scan for this plan caught exactly that (Task 1's `DashboardViewModel.kt`). Put every import the code block actually needs inside the code block itself, never in a trailing note.
+
+## Status
+
+### Calorie-only scope-down (2026-09-02)
+
+App re-scoped to a pure calorie counter per user direction: Gemini food logging (photo/text) + onboarding BMR/TDEE budget + weigh-ins + Health Connect calories-burned read + weekly adaptive budget recompute. Cut: weekly running commitment, consistency grid, run analytics/detail, weekly review, motivation lines, Open Food Facts search. See `docs/superpowers/specs/2026-09-02-calorie-only-scope-down-design.md` and `docs/superpowers/plans/2026-09-02-calorie-only-scope-down.md`. Exercise logging is deferred, not deleted from history — see `future_plans.md`.
