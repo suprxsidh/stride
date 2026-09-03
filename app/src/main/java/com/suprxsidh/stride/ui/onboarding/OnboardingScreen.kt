@@ -184,11 +184,11 @@ private fun HealthConnectSetupStep(
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            "2. Grant this app the Exercise, Calories, Distance, Heart Rate, and Weight permissions when prompted.",
+            "2. Grant this app the Calories and Weight permissions when prompted.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            "Sync can take 30–60 minutes after a run. Opening Samsung Health first speeds it up.",
+            "Sync can take 30–60 minutes to catch up. Opening Samsung Health first speeds it up.",
             style = MaterialTheme.typography.bodySmall,
             color = StrideOnSurfaceMuted,
         )
