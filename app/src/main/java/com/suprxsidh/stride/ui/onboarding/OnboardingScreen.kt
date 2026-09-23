@@ -140,14 +140,33 @@ private fun ProfileEntryStep(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
-            value = viewModel.age,
-            onValueChange = { viewModel.age = it },
-            label = { Text("Age") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Text("Birth date", style = MaterialTheme.typography.bodySmall, color = StrideOnSurfaceMuted)
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            OutlinedTextField(
+                value = viewModel.birthDay,
+                onValueChange = { viewModel.birthDay = it },
+                label = { Text("Day") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = viewModel.birthMonth,
+                onValueChange = { viewModel.birthMonth = it },
+                label = { Text("Month") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = viewModel.birthYear,
+                onValueChange = { viewModel.birthYear = it },
+                label = { Text("Year") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             FilterChip(selected = viewModel.sex == Sex.MALE, onClick = { viewModel.sex = Sex.MALE }, label = { Text("Male") })
             FilterChip(selected = viewModel.sex == Sex.FEMALE, onClick = { viewModel.sex = Sex.FEMALE }, label = { Text("Female") })

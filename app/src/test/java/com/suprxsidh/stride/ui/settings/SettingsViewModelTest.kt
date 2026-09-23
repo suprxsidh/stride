@@ -60,7 +60,7 @@ class SettingsViewModelTest {
     fun `saving and clearing the manual budget override updates observed state`() = runTest {
         db.userProfileDao().upsert(
             com.suprxsidh.stride.data.db.entity.UserProfileEntity(
-                heightCm = 178.0, weightKgAtStart = 80.0, age = 29,
+                heightCm = 178.0, weightKgAtStart = 80.0, birthDate = "1995-01-01",
                 sex = com.suprxsidh.stride.data.calc.Sex.MALE.name, goalWeightKg = 70.0, softBudgetKcal = 1850, createdAt = 0L
             )
         )

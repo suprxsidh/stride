@@ -19,9 +19,11 @@ class AppContainer(private val context: Context) {
     private val database = StrideDatabase.getInstance(context)
     val userProfileRepository = UserProfileRepository(database.userProfileDao(), database.weighInDao())
     val foodRepository = FoodRepository(database.foodEntryDao(), database.customFoodDao())
-    val weightRepository = WeightRepository(database.weighInDao())
     val settingsRepository = SettingsRepository(database.appSettingsDao())
     val adaptiveBudgetRepository = AdaptiveBudgetRepository(database.userProfileDao(), database.weighInDao(), settingsRepository)
+    // Feature D (completeness pass, spec §5): wires the weigh-in -> recompute trigger. See the
+    // comment on WeightRepository's constructor for why this is wired here, not in WeightViewModel.
+    val weightRepository = WeightRepository(database.weighInDao(), adaptiveBudgetRepository = adaptiveBudgetRepository)
     val geminiFoodRepository = GeminiFoodRepository(
         estimator = GeminiFoodEstimator(GeminiServiceFactory.create()),
         settingsRepository = settingsRepository,

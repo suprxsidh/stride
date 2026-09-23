@@ -6,8 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.suprxsidh.stride.data.calc.Sex
 import com.suprxsidh.stride.data.db.StrideDatabase
 import com.suprxsidh.stride.data.db.entity.FoodEntryEntity
+import com.suprxsidh.stride.data.repository.AdaptiveBudgetRepository
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.HealthConnectRepository
+import com.suprxsidh.stride.data.repository.SettingsRepository
 import com.suprxsidh.stride.data.repository.UserProfileRepository
 import com.suprxsidh.stride.data.repository.WeightRepository
 import com.suprxsidh.stride.health.HealthDataSource
@@ -28,6 +30,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -50,7 +53,8 @@ class DashboardViewModelTest {
         hasPermissions: suspend () -> Boolean = { true },
         isIgnoringBatteryOptimizations: () -> Boolean = { false },
         scheduleHealthConnectSync: () -> Unit = {},
-        caloriesBurned: Int = 0
+        caloriesBurned: Int = 0,
+        adaptiveBudgetRepository: AdaptiveBudgetRepository? = null
     ): DashboardViewModel {
         return DashboardViewModel(
             FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = clock),
@@ -61,7 +65,8 @@ class DashboardViewModelTest {
             hasPermissions,
             isIgnoringBatteryOptimizations,
             clock,
-            scheduleHealthConnectSync
+            scheduleHealthConnectSync,
+            adaptiveBudgetRepository
         )
     }
 
@@ -98,7 +103,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `after onboarding the profile reflects the computed soft budget`() = runTest(testDispatcher) {
-        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, LocalDate.now().minusYears(26), Sex.MALE)
         backgroundScope.launch { viewModel.profile.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(1645, viewModel.profile.value?.softBudgetKcal)
@@ -115,7 +120,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `rollingDeficitKcal banks a full budget for every day in the window when nothing is logged`() = runTest(testDispatcher) {
-        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, LocalDate.now().minusYears(26), Sex.MALE)
         backgroundScope.launch { viewModel.rollingDeficitKcal.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(1645 * 7, viewModel.rollingDeficitKcal.value)
@@ -123,7 +128,7 @@ class DashboardViewModelTest {
 
     @Test
     fun `rollingDeficitKcal subtracts today's buffered total from the banked budget`() = runTest(testDispatcher) {
-        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, LocalDate.now().minusYears(26), Sex.MALE)
         db.foodEntryDao().insert(FoodEntryEntity(date = "2026-08-10", name = "Test", rawKcal = 200, bufferedKcal = 220, source = "QUICK", loggedAt = 1L))
         backgroundScope.launch { viewModel.rollingDeficitKcal.collect {} }
         testDispatcher.scheduler.advanceUntilIdle()
@@ -316,5 +321,46 @@ class DashboardViewModelTest {
 
         assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
         assertEquals(1, scheduleCalls)
+    }
+    // Feature D (completeness pass, spec §5): refreshDeviceStatuses() already runs at both
+    // construction (init) and every ON_RESUME (see DashboardScreen's lifecycle observer) --
+    // hanging the adaptive-budget recompute off it covers "once per app foreground/dashboard
+    // load" for the age-driven-drift case, which has no weigh-in event to trigger off.
+    @Test
+    fun `refreshDeviceStatuses recomputes the adaptive budget on load, with no weigh-in event`() = runTest(testDispatcher) {
+        db.userProfileDao().upsert(
+            com.suprxsidh.stride.data.db.entity.UserProfileEntity(
+                heightCm = 178.0, weightKgAtStart = 90.0, birthDate = "1997-08-10", // age 29 as of 2026-08-10
+                sex = Sex.MALE.name, goalWeightKg = 80.0, softBudgetKcal = 2000, createdAt = 0L
+            )
+        )
+        for (i in 0..6) {
+            db.weighInDao().upsert(com.suprxsidh.stride.data.db.entity.WeighInEntity(date = "2026-08-0${i + 1}", weightKg = 78.0))
+        }
+        val settingsRepository = SettingsRepository(db.appSettingsDao())
+        val adaptiveBudgetRepository = AdaptiveBudgetRepository(
+            db.userProfileDao(), db.weighInDao(), settingsRepository, today = { LocalDate.of(2026, 8, 10) }
+        )
+
+        val viewModel = buildViewModel(
+            clock = { LocalDateTime.of(2026, 8, 11, 9, 0) },
+            adaptiveBudgetRepository = adaptiveBudgetRepository
+        )
+        backgroundScope.launch { viewModel.profile.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // bmr=10*78+6.25*178-5*29+5=1752.5, tdee=2103.0, floor(2103-500)=1603 -- recomputed
+        // purely from init's refreshDeviceStatuses() call, no weigh-in logged through this VM.
+        assertEquals(1603, viewModel.profile.value?.softBudgetKcal)
+    }
+
+    @Test
+    fun `refreshDeviceStatuses is a no-op when no adaptiveBudgetRepository is wired`() = runTest(testDispatcher) {
+        // Default buildViewModel() passes null -- must not crash refreshDeviceStatuses().
+        backgroundScope.launch { viewModel.healthConnectStatus.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.refreshDeviceStatuses()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(HealthConnectStatus.OK, viewModel.healthConnectStatus.value)
     }
 }

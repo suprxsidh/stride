@@ -50,7 +50,9 @@ class OnboardingViewModelTest {
         var called = false
         viewModel.heightCm = "178"
         viewModel.weightKg = "80"
-        viewModel.age = "26"
+        viewModel.birthDay = "15"
+        viewModel.birthMonth = "6"
+        viewModel.birthYear = "2000"
         viewModel.sex = Sex.MALE
         viewModel.submit { called = true }
 
@@ -62,7 +64,9 @@ class OnboardingViewModelTest {
     fun `blank goal weight leaves it to the repository default`() = runTest {
         viewModel.heightCm = "178"
         viewModel.weightKg = "80"
-        viewModel.age = "26"
+        viewModel.birthDay = "15"
+        viewModel.birthMonth = "6"
+        viewModel.birthYear = "2000"
         viewModel.sex = Sex.MALE
         viewModel.goalWeightKg = ""
         viewModel.submit {}
@@ -75,7 +79,9 @@ class OnboardingViewModelTest {
     fun `blank protein floor leaves it to the repository's 1_6x-weight default`() = runTest {
         viewModel.heightCm = "178"
         viewModel.weightKg = "80"
-        viewModel.age = "26"
+        viewModel.birthDay = "15"
+        viewModel.birthMonth = "6"
+        viewModel.birthYear = "2000"
         viewModel.sex = Sex.MALE
         viewModel.proteinFloorG = ""
         viewModel.submit {}
@@ -88,13 +94,71 @@ class OnboardingViewModelTest {
     fun `explicit protein floor input is passed through to the stored profile`() = runTest {
         viewModel.heightCm = "178"
         viewModel.weightKg = "80"
-        viewModel.age = "26"
+        viewModel.birthDay = "15"
+        viewModel.birthMonth = "6"
+        viewModel.birthYear = "2000"
         viewModel.sex = Sex.MALE
         viewModel.proteinFloorG = "150"
         viewModel.submit {}
 
         val profile = db.userProfileDao().get()
         assertEquals(150.0, profile!!.proteinFloorG, 0.001)
+    }
+
+    @Test
+    fun `submitting a birthdate stores the ISO date string on the profile`() = runTest {
+        viewModel.heightCm = "178"
+        viewModel.weightKg = "80"
+        viewModel.birthDay = "15"
+        viewModel.birthMonth = "6"
+        viewModel.birthYear = "2000"
+        viewModel.sex = Sex.MALE
+        viewModel.submit {}
+
+        val profile = db.userProfileDao().get()
+        assertEquals("2000-06-15", profile!!.birthDate)
+    }
+
+    @Test
+    fun `an invalid calendar date (Feb 30) sets an error and does not call onDone`() = runTest {
+        var called = false
+        viewModel.heightCm = "178"
+        viewModel.weightKg = "80"
+        viewModel.birthDay = "30"
+        viewModel.birthMonth = "2"
+        viewModel.birthYear = "2000"
+        viewModel.sex = Sex.MALE
+        viewModel.submit { called = true }
+
+        assertEquals(false, called)
+        assertNotNull(viewModel.error)
+    }
+
+    @Test
+    fun `a birth date in the future sets an error and does not call onDone`() = runTest {
+        var called = false
+        viewModel.heightCm = "178"
+        viewModel.weightKg = "80"
+        viewModel.birthDay = "1"
+        viewModel.birthMonth = "1"
+        viewModel.birthYear = "2999"
+        viewModel.sex = Sex.MALE
+        viewModel.submit { called = true }
+
+        assertEquals(false, called)
+        assertNotNull(viewModel.error)
+    }
+
+    @Test
+    fun `blank birth date fields set an error and do not call onDone`() = runTest {
+        var called = false
+        viewModel.heightCm = "178"
+        viewModel.weightKg = "80"
+        viewModel.sex = Sex.MALE
+        viewModel.submit { called = true }
+
+        assertEquals(false, called)
+        assertNotNull(viewModel.error)
     }
 
     @Test

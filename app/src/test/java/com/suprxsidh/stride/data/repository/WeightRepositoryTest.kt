@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @RunWith(RobolectricTestRunner::class)
@@ -79,5 +80,37 @@ class WeightRepositoryTest {
     fun `four-week trend is null with fewer than 2 rolling-average points`() = runTest {
         db.weighInDao().upsert(com.suprxsidh.stride.data.db.entity.WeighInEntity(date = "2026-08-10", weightKg = 81.0))
         assertEquals(null, repo.observeFourWeekTrend().first())
+    }
+
+    // Feature D (completeness pass, spec §5): recomputeIfNoOverride() previously only ever fired
+    // from AdaptiveBudgetRepository.clearManualOverride() -- a weigh-in never fed back into the
+    // adaptive budget at all. Wired at this (repository) layer -- see the constructor comment on
+    // WeightRepository for why here and not WeightViewModel.
+    @Test
+    fun `logWeighIn triggers the wired AdaptiveBudgetRepository recompute`() = runTest {
+        val fixedClock = { LocalDateTime.of(2026, 8, 10, 7, 0) }
+        val settingsRepository = SettingsRepository(db.appSettingsDao())
+        val adaptiveBudgetRepository = AdaptiveBudgetRepository(
+            db.userProfileDao(), db.weighInDao(), settingsRepository, today = { LocalDate.of(2026, 8, 10) }
+        )
+        db.userProfileDao().upsert(
+            com.suprxsidh.stride.data.db.entity.UserProfileEntity(
+                heightCm = 178.0, weightKgAtStart = 90.0, birthDate = "1997-08-10", // age 29 as of 2026-08-10
+                sex = com.suprxsidh.stride.data.calc.Sex.MALE.name, goalWeightKg = 80.0, softBudgetKcal = 2000, createdAt = 0L
+            )
+        )
+        val repoWithBudget = WeightRepository(db.weighInDao(), fixedClock, adaptiveBudgetRepository)
+
+        repoWithBudget.logWeighIn(78.0)
+
+        // bmr=1752.5, tdee=2103.0, floor(2103-500)=1603 -- recomputed purely as a side effect of
+        // logging the weigh-in, no separate manual recompute call.
+        assertEquals(1603, db.userProfileDao().get()?.softBudgetKcal)
+    }
+
+    @Test
+    fun `logWeighIn does not crash when no AdaptiveBudgetRepository is wired`() = runTest {
+        repo.logWeighIn(80.0) // repo built in setUp has no adaptiveBudgetRepository (defaults to null)
+        assertEquals(80.0, db.weighInDao().observeAll().first().first().weightKg, 0.001)
     }
 }

@@ -10,11 +10,20 @@ import com.suprxsidh.stride.health.HealthConnectManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.time.DateTimeException
+import java.time.LocalDate
 
 class OnboardingViewModel(private val repository: UserProfileRepository) : ViewModel() {
     var heightCm by mutableStateOf("")
     var weightKg by mutableStateOf("")
-    var age by mutableStateOf("")
+    // Feature D (completeness pass, spec §5): a raw age number goes stale the moment it's typed
+    // -- a birthdate lets the stored profile's derived age keep drifting correctly forever.
+    // Three plain numeric fields (day/month/year), matching this screen's existing input style
+    // (OutlinedTextField everywhere, no dialogs anywhere in this codebase) rather than
+    // introducing Material3's DatePickerDialog machinery for a single field.
+    var birthDay by mutableStateOf("")
+    var birthMonth by mutableStateOf("")
+    var birthYear by mutableStateOf("")
     var sex by mutableStateOf(Sex.MALE)
     var goalWeightKg by mutableStateOf("")
     // Feature C (completeness pass, spec §4): left blank -> repository defaults to 1.6 * weightKg.
@@ -32,9 +41,9 @@ class OnboardingViewModel(private val repository: UserProfileRepository) : ViewM
     suspend fun submit(onDone: () -> Unit) {
         val h = heightCm.toDoubleOrNull()
         val w = weightKg.toDoubleOrNull()
-        val a = age.toIntOrNull()
-        if (h == null || h <= 0.0 || w == null || w <= 0.0 || a == null || a <= 0) {
-            error = "Enter a valid height, weight, and age."
+        val birthDate = parseBirthDate()
+        if (h == null || h <= 0.0 || w == null || w <= 0.0 || birthDate == null) {
+            error = "Enter a valid height, weight, and birth date."
             return
         }
         error = null
@@ -43,11 +52,23 @@ class OnboardingViewModel(private val repository: UserProfileRepository) : ViewM
         repository.completeOnboarding(
             heightCm = h,
             weightKg = w,
-            age = a,
+            birthDate = birthDate,
             sex = sex,
             goalWeightKg = goal,
             proteinFloorG = proteinFloor
         )
         onDone()
+    }
+
+    private fun parseBirthDate(): LocalDate? {
+        val day = birthDay.toIntOrNull() ?: return null
+        val month = birthMonth.toIntOrNull() ?: return null
+        val year = birthYear.toIntOrNull() ?: return null
+        return try {
+            val date = LocalDate.of(year, month, day)
+            if (date.isAfter(LocalDate.now())) null else date
+        } catch (e: DateTimeException) {
+            null
+        }
     }
 }

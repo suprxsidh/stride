@@ -39,7 +39,11 @@ import com.suprxsidh.stride.data.db.entity.WeighInEntity
     // v11: completeness pass Feature C (protein floor) -- FoodEntryEntity gained proteinG,
     // UserProfileEntity gained proteinFloorG. fallbackToDestructiveMigration() below handles the
     // upgrade, same convention as every prior version bump.
-    version = 11,
+    // v12: completeness pass Feature D (adaptive budget actually adapts) -- UserProfileEntity's
+    // static `age: Int` replaced with `birthDate: String` (ISO date), so age can be derived at
+    // call time instead of going stale. fallbackToDestructiveMigration() below handles the
+    // upgrade, same convention as every prior version bump.
+    version = 12,
     exportSchema = false
 )
 abstract class StrideDatabase : RoomDatabase() {

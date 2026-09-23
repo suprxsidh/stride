@@ -50,7 +50,8 @@ fun DashboardScreen(onQuickAdd: () -> Unit) {
                 scheduleHealthConnectSync = {
                     HealthConnectSyncWorker.schedulePeriodic(app)
                     HealthConnectSyncWorker.triggerOneOff(app)
-                }
+                },
+                adaptiveBudgetRepository = app.container.adaptiveBudgetRepository
             )
         }
     })

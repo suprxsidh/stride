@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suprxsidh.stride.data.calc.RollingDeficit
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
+import com.suprxsidh.stride.data.repository.AdaptiveBudgetRepository
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.HealthConnectRepository
 import com.suprxsidh.stride.data.repository.UserProfileRepository
@@ -39,7 +40,13 @@ class DashboardViewModel(
     // so without this hook, granting permission via the settings deep link silently never
     // starts sync until the process is fully killed and cold-started again. Same root cause
     // as the onboarding scheduling bug, different trigger site.
-    private val scheduleHealthConnectSync: () -> Unit = {}
+    private val scheduleHealthConnectSync: () -> Unit = {},
+    // Feature D (completeness pass, spec §5): recomputeIfNoOverride() previously only ever fired
+    // from a weigh-in or a manual-override clear -- an age-driven drift (no weight change, just
+    // a birthday passing) had no event to trigger off. refreshDeviceStatuses() already runs both
+    // at construction (init, below) and on every ON_RESUME from DashboardScreen, so hanging this
+    // off it covers "once per app foreground/dashboard load" for free.
+    private val adaptiveBudgetRepository: AdaptiveBudgetRepository? = null
 ) : ViewModel() {
 
     val profile: StateFlow<UserProfileEntity?> =
@@ -89,6 +96,7 @@ class DashboardViewModel(
 
     fun refreshDeviceStatuses() {
         _batteryOptimizationIgnored.value = isIgnoringBatteryOptimizations()
+        viewModelScope.launch { adaptiveBudgetRepository?.recomputeIfNoOverride() }
         viewModelScope.launch {
             val previousStatus = _healthConnectStatus.value
             val newStatus = try {

@@ -14,14 +14,25 @@ enum class TrendDirection { UP, DOWN, FLAT }
 
 class WeightRepository(
     private val weighInDao: WeighInDao,
-    private val clock: () -> LocalDateTime = { LocalDateTime.now() }
+    private val clock: () -> LocalDateTime = { LocalDateTime.now() },
+    // Feature D (completeness pass, spec §5): recomputeIfNoOverride() previously only ever ran
+    // from AdaptiveBudgetRepository.clearManualOverride() -- a weigh-in never fed back into the
+    // adaptive budget at all. Wired at this layer (not WeightViewModel) rather than the
+    // ViewModel so any future caller that logs a weigh-in directly through the repository (e.g.
+    // a reminder's direct-reply background path, spec §6) gets the recompute for free too. No
+    // circular dependency: AdaptiveBudgetRepository depends only on UserProfileDao/WeighInDao/
+    // SettingsRepository, never on WeightRepository itself. Nullable/defaulted so every existing
+    // test construction of WeightRepository keeps compiling unchanged.
+    private val adaptiveBudgetRepository: AdaptiveBudgetRepository? = null
 ) {
     suspend fun logWeighIn(weightKg: Double): WeighInEntity {
         val date = DayBoundary.logicalDate(clock()).toString()
         val existing = weighInDao.getForDate(date)
         val entity = existing?.copy(weightKg = weightKg) ?: WeighInEntity(date = date, weightKg = weightKg)
         val newId = weighInDao.upsert(entity)
-        return if (existing != null) entity else entity.copy(id = newId)
+        val result = if (existing != null) entity else entity.copy(id = newId)
+        adaptiveBudgetRepository?.recomputeIfNoOverride()
+        return result
     }
 
     fun observeRollingAverageSeries(): Flow<List<Pair<LocalDate, Double>>> =

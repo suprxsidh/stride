@@ -8,7 +8,9 @@ import com.suprxsidh.stride.data.db.dao.WeighInDao
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
 import com.suprxsidh.stride.data.db.entity.WeighInEntity
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.Period
 import java.time.ZoneId
 
 class UserProfileRepository(
@@ -22,19 +24,23 @@ class UserProfileRepository(
     suspend fun completeOnboarding(
         heightCm: Double,
         weightKg: Double,
-        age: Int,
+        // Feature D (completeness pass, spec §5): replaces the old raw `age: Int` -- age is
+        // derived here, at onboarding time, from the birthdate instead of being captured once
+        // and going stale.
+        birthDate: LocalDate,
         sex: Sex,
         goalWeightKg: Double? = null,
         // Feature C (spec §4): "sane default (1.6 * weightKg), editable" — same optional-with-
         // fallback shape as goalWeightKg just above.
         proteinFloorG: Double? = null
     ): UserProfileEntity {
+        val age = Period.between(birthDate, clock().toLocalDate()).years
         val bmr = CalorieMath.bmr(weightKg, heightCm, age, sex)
         val tdee = CalorieMath.tdee(bmr)
         val entity = UserProfileEntity(
             heightCm = heightCm,
             weightKgAtStart = weightKg,
-            age = age,
+            birthDate = birthDate.toString(),
             sex = sex.name,
             goalWeightKg = goalWeightKg ?: (weightKg - 10.0),
             softBudgetKcal = CalorieMath.softBudgetKcal(tdee),
