@@ -10,6 +10,10 @@ data class FoodEntryEntity(
     val name: String,
     val rawKcal: Int,
     val bufferedKcal: Int,
+    // Feature C (completeness pass, spec §4): protein estimate in grams for this entry. Defaults
+    // to 0.0 so pre-existing call sites (quick-add, custom food, older tests) that don't supply
+    // a protein value keep compiling — only the Gemini estimation path currently populates it.
+    val proteinG: Double = 0.0,
     val source: String,
     val loggedAt: Long
 )

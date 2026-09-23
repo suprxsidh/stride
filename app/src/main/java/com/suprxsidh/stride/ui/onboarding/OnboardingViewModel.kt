@@ -17,6 +17,8 @@ class OnboardingViewModel(private val repository: UserProfileRepository) : ViewM
     var age by mutableStateOf("")
     var sex by mutableStateOf(Sex.MALE)
     var goalWeightKg by mutableStateOf("")
+    // Feature C (completeness pass, spec §4): left blank -> repository defaults to 1.6 * weightKg.
+    var proteinFloorG by mutableStateOf("")
     var error by mutableStateOf<String?>(null)
         private set
 
@@ -37,7 +39,15 @@ class OnboardingViewModel(private val repository: UserProfileRepository) : ViewM
         }
         error = null
         val goal = goalWeightKg.toDoubleOrNull()
-        repository.completeOnboarding(heightCm = h, weightKg = w, age = a, sex = sex, goalWeightKg = goal)
+        val proteinFloor = proteinFloorG.toDoubleOrNull()
+        repository.completeOnboarding(
+            heightCm = h,
+            weightKg = w,
+            age = a,
+            sex = sex,
+            goalWeightKg = goal,
+            proteinFloorG = proteinFloor
+        )
         onDone()
     }
 }

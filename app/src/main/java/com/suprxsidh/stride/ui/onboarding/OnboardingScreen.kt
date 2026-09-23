@@ -160,6 +160,14 @@ private fun ProfileEntryStep(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        OutlinedTextField(
+            value = viewModel.proteinFloorG,
+            onValueChange = { viewModel.proteinFloorG = it },
+            label = { Text("Protein floor (g) — optional, defaults to 1.6× your weight in kg") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
 
         viewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 

@@ -52,8 +52,10 @@ class GeminiFoodEstimator(
             Rules:
             - When portion size or ingredients are ambiguous, always estimate on the HIGH end, never the low end.
             - Assume standard Indian home-cooking defaults (ghee/oil used, typical home portion sizes) unless the description says otherwise.
-            - "items" should list each distinct food item with its own kcal estimate.
-            - "totalKcal" is the sum across items.
+            - "items" should list each distinct food item with its own kcal AND protein-in-grams estimate.
+            - "totalKcal" is the sum of kcal across items.
+            - "totalProteinG" is the sum of protein (in grams) across items.
+            - When protein content is ambiguous, always estimate on the HIGH end, never the low end -- same rule as kcal.
             - "confidence" is one of "low", "medium", "high".
         """.trimIndent()
 
@@ -66,15 +68,17 @@ class GeminiFoodEstimator(
                         type = "object",
                         properties = mapOf(
                             "name" to GeminiSchema(type = "string"),
-                            "kcal" to GeminiSchema(type = "integer")
+                            "kcal" to GeminiSchema(type = "integer"),
+                            "proteinG" to GeminiSchema(type = "number")
                         ),
-                        required = listOf("name", "kcal")
+                        required = listOf("name", "kcal", "proteinG")
                     )
                 ),
                 "totalKcal" to GeminiSchema(type = "integer"),
+                "totalProteinG" to GeminiSchema(type = "number"),
                 "confidence" to GeminiSchema(type = "string")
             ),
-            required = listOf("items", "totalKcal", "confidence")
+            required = listOf("items", "totalKcal", "totalProteinG", "confidence")
         )
     }
 }

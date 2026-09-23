@@ -156,6 +156,69 @@ class FoodRepositoryTest {
         assertEquals(275, entries[0].bufferedKcal)
     }
 
+    // Rolling deficit + protein floor (completeness pass, spec §3/§4) tests below.
+
+    @Test
+    fun `observeTodayProteinTotal sums proteinG for today's entries only`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 12, 0) }
+        repo.logGeminiEstimate("Paneer bhurji", 300, proteinG = 18.0)
+        repo.logGeminiEstimate("Dal", 200, proteinG = 9.5)
+        repo.logQuickAdd("Rice", 150) // no protein estimate -> defaults to 0.0, doesn't error
+
+        val otherDayRepo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 21, 12, 0) }
+        otherDayRepo.logGeminiEstimate("Other day meal", 400, proteinG = 40.0)
+
+        val total = repo.observeTodayProteinTotal().first()
+        assertEquals(27.5, total, 0.001)
+    }
+
+    @Test
+    fun `observeTodayProteinTotal is zero for a day with no entries, not an error`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 12, 0) }
+        assertEquals(0.0, repo.observeTodayProteinTotal().first(), 0.001)
+    }
+
+    @Test
+    fun `observeBufferedTotalsForRange groups buffered kcal by date across the window`() = runTest {
+        val day1 = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 18, 12, 0) }
+        day1.logQuickAdd("Meal", 100) // buffered 110
+
+        val day2 = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 19, 12, 0) }
+        day2.logQuickAdd("Meal A", 100) // buffered 110
+        day2.logQuickAdd("Meal B", 100) // buffered 110
+
+        // 2026-09-20 deliberately left with no entries -- a real gap day within the window.
+
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao())
+        val totals = repo.observeBufferedTotalsForRange(LocalDate.of(2026, 9, 18), LocalDate.of(2026, 9, 20)).first()
+
+        assertEquals(110, totals[LocalDate.of(2026, 9, 18)])
+        assertEquals(220, totals[LocalDate.of(2026, 9, 19)])
+        assertTrue(!totals.containsKey(LocalDate.of(2026, 9, 20))) // gap day: no row, not a zero row
+    }
+
+    @Test
+    fun `observeBufferedTotalsForRange excludes entries outside the requested window`() = runTest {
+        val inWindow = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 19, 12, 0) }
+        inWindow.logQuickAdd("In window", 100)
+
+        val outOfWindow = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 30, 12, 0) }
+        outOfWindow.logQuickAdd("Out of window", 500)
+
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao())
+        val totals = repo.observeBufferedTotalsForRange(LocalDate.of(2026, 9, 18), LocalDate.of(2026, 9, 20)).first()
+
+        assertEquals(1, totals.size)
+        assertEquals(110, totals[LocalDate.of(2026, 9, 19)])
+    }
+
+    @Test
+    fun `logGeminiEstimate defaults proteinG to zero when not supplied`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 12, 0) }
+        val entry = repo.logGeminiEstimate("Mystery meal", 300)
+        assertEquals(0.0, entry.proteinG, 0.001)
+    }
+
     @Test
     fun `currentLogicalDate applies the same 3am boundary as todayKey`() = runTest {
         val lateNightRepo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 1, 0) }

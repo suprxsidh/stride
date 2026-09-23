@@ -66,11 +66,17 @@ class GeminiFoodRepository(
         }
     }
 
-    /** Saves a reviewed (optionally edited) estimate. Called once the user taps "confirm". */
+    /**
+     * Saves a reviewed (optionally edited) estimate. Called once the user taps "confirm".
+     *
+     * Feature C (spec §4): protein isn't part of the existing name/kcal edit UI, so it's always
+     * saved as Gemini estimated it (`estimate.totalProteinG`) even when the user edits the name
+     * or kcal total.
+     */
     suspend fun confirmEstimate(estimate: GeminiFoodEstimate, editedName: String? = null, editedTotalKcal: Int? = null): FoodEntryEntity {
         val name = editedName ?: estimate.items.joinToString(", ") { it.name }
         val kcal = editedTotalKcal ?: estimate.totalKcal
-        return foodRepository.logGeminiEstimate(name, kcal)
+        return foodRepository.logGeminiEstimate(name, kcal, estimate.totalProteinG)
     }
 
     /**

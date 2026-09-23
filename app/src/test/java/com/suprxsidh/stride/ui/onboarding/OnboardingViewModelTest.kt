@@ -72,6 +72,32 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun `blank protein floor leaves it to the repository's 1_6x-weight default`() = runTest {
+        viewModel.heightCm = "178"
+        viewModel.weightKg = "80"
+        viewModel.age = "26"
+        viewModel.sex = Sex.MALE
+        viewModel.proteinFloorG = ""
+        viewModel.submit {}
+
+        val profile = db.userProfileDao().get()
+        assertEquals(128.0, profile!!.proteinFloorG, 0.001) // 1.6 * 80
+    }
+
+    @Test
+    fun `explicit protein floor input is passed through to the stored profile`() = runTest {
+        viewModel.heightCm = "178"
+        viewModel.weightKg = "80"
+        viewModel.age = "26"
+        viewModel.sex = Sex.MALE
+        viewModel.proteinFloorG = "150"
+        viewModel.submit {}
+
+        val profile = db.userProfileDao().get()
+        assertEquals(150.0, profile!!.proteinFloorG, 0.001)
+    }
+
+    @Test
     fun `onHealthConnectPermissionsResult true when all required permissions granted`() = runTest {
         viewModel.onHealthConnectPermissionsResult(HealthConnectManager.REQUIRED_PERMISSIONS)
         assertTrue(viewModel.healthConnectPermissionsGranted.value)

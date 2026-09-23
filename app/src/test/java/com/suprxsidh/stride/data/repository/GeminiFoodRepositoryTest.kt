@@ -38,8 +38,22 @@ class GeminiFoodRepositoryTest {
         }
     }
 
+    // Feature C (spec §4): a variant whose response includes protein, for the tests below that
+    // verify confirmEstimate actually threads totalProteinG through to the saved entry.
+    private class FakeGeminiApiWithProtein : GeminiApi {
+        override suspend fun generateContent(model: String, apiKey: String, request: GeminiGenerateContentRequest): GeminiGenerateContentResponse {
+            val json = """{"items":[{"name":"2 rotis","kcal":180,"proteinG":6.0}],"totalKcal":180,"totalProteinG":6.0,"confidence":"medium"}"""
+            return GeminiGenerateContentResponse(listOf(GeminiCandidate(GeminiContent(listOf(GeminiPart(text = json))))))
+        }
+    }
+
     private fun buildRepo(succeed: Boolean): GeminiFoodRepository {
         val estimator = GeminiFoodEstimator(FakeGeminiApi(succeed))
+        return GeminiFoodRepository(estimator, settingsRepository, foodRepository, db.pendingDraftDao())
+    }
+
+    private fun buildRepoWithProtein(): GeminiFoodRepository {
+        val estimator = GeminiFoodEstimator(FakeGeminiApiWithProtein())
         return GeminiFoodRepository(estimator, settingsRepository, foodRepository, db.pendingDraftDao())
     }
 
@@ -95,6 +109,26 @@ class GeminiFoodRepositoryTest {
         assertEquals("2 rotis (edited)", entry.name)
         assertEquals(220, entry.rawKcal)
         assertEquals(242, entry.bufferedKcal) // +10% of the edited value, not the original
+    }
+
+    @Test
+    fun `confirmEstimate saves the estimate's totalProteinG onto the food entry`() = runTest {
+        val result = buildRepoWithProtein().estimateMeal("2 rotis", null)
+        val estimate = (result as GeminiEstimateResult.Success).estimate
+
+        val entry = buildRepoWithProtein().confirmEstimate(estimate)
+
+        assertEquals(6.0, entry.proteinG, 0.001)
+    }
+
+    @Test
+    fun `confirmEstimate keeps the original protein even when name and kcal are edited`() = runTest {
+        val result = buildRepoWithProtein().estimateMeal("2 rotis", null)
+        val estimate = (result as GeminiEstimateResult.Success).estimate
+
+        val entry = buildRepoWithProtein().confirmEstimate(estimate, editedName = "2 rotis (edited)", editedTotalKcal = 220)
+
+        assertEquals(6.0, entry.proteinG, 0.001)
     }
 
     @Test

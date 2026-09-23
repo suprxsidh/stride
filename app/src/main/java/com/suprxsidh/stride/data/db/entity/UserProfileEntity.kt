@@ -12,5 +12,10 @@ data class UserProfileEntity(
     val sex: String,
     val goalWeightKg: Double,
     val softBudgetKcal: Int,
+    // Feature C (completeness pass, spec §4): protein floor in grams. Defaults to 0.0 purely so
+    // pre-existing tests that construct this entity without it (age/birthdate migration is a
+    // separate later task, not touched here) keep compiling; every real profile written via
+    // UserProfileRepository.completeOnboarding always sets a real computed value.
+    val proteinFloorG: Double = 0.0,
     val createdAt: Long
 )

@@ -48,6 +48,53 @@ class GeminiFoodEstimatorTest {
     }
 
     @Test
+    fun `estimate parses per-item and total protein grams when present`() = runTest {
+        val geminiJsonBody =
+            """{"items":[{"name":"2 rotis","kcal":180,"proteinG":6.0},{"name":"dal tadka","kcal":220,"proteinG":12.0}],"totalKcal":400,"totalProteinG":18.0,"confidence":"medium"}"""
+        val wrapped =
+            """{"candidates":[{"content":{"parts":[{"text":${org.json.JSONObject.quote(geminiJsonBody)}}]}}]}"""
+        server.enqueue(MockResponse().setBody(wrapped).setResponseCode(200))
+
+        val estimate = estimator.estimate(apiKey = "test-key", description = "2 rotis, dal tadka", photoBase64 = null)
+
+        assertEquals(18.0, estimate.totalProteinG, 0.001)
+        assertEquals(6.0, estimate.items[0].proteinG, 0.001)
+        assertEquals(12.0, estimate.items[1].proteinG, 0.001)
+    }
+
+    @Test
+    fun `estimate defaults protein to zero when Gemini's response omits it (pre-existing shape)`() = runTest {
+        // Regression guard: responses shaped like they were before Feature C must still parse,
+        // not throw, since ignoreUnknownKeys/defaults are what keeps old callers compatible.
+        val geminiJsonBody =
+            """{"items":[{"name":"2 rotis","kcal":180}],"totalKcal":180,"confidence":"medium"}"""
+        val wrapped =
+            """{"candidates":[{"content":{"parts":[{"text":${org.json.JSONObject.quote(geminiJsonBody)}}]}}]}"""
+        server.enqueue(MockResponse().setBody(wrapped).setResponseCode(200))
+
+        val estimate = estimator.estimate(apiKey = "test-key", description = "2 rotis", photoBase64 = null)
+
+        assertEquals(0.0, estimate.totalProteinG, 0.001)
+        assertEquals(0.0, estimate.items[0].proteinG, 0.001)
+    }
+
+    @Test
+    fun `estimate requests a proteinG field in the response schema`() = runTest {
+        val geminiJsonBody =
+            """{"items":[{"name":"2 rotis","kcal":180,"proteinG":6.0}],"totalKcal":180,"totalProteinG":6.0,"confidence":"medium"}"""
+        val wrapped =
+            """{"candidates":[{"content":{"parts":[{"text":${org.json.JSONObject.quote(geminiJsonBody)}}]}}]}"""
+        server.enqueue(MockResponse().setBody(wrapped).setResponseCode(200))
+
+        estimator.estimate(apiKey = "test-key", description = "2 rotis", photoBase64 = null)
+
+        val recorded = server.takeRequest()
+        val sentBody = recorded.body.readUtf8()
+        assertTrue(sentBody.contains("\"proteinG\""))
+        assertTrue(sentBody.contains("\"totalProteinG\""))
+    }
+
+    @Test
     fun `estimate throws GeminiEstimationException on HTTP error`() = runTest {
         server.enqueue(MockResponse().setResponseCode(429))
 

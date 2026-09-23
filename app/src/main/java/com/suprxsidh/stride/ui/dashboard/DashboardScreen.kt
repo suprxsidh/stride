@@ -32,6 +32,7 @@ import com.suprxsidh.stride.ui.theme.component.PunchCardRow
 import com.suprxsidh.stride.ui.theme.component.StartLineDivider
 import com.suprxsidh.stride.ui.theme.component.StartLineProgress
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 @Composable
 fun DashboardScreen(onQuickAdd: () -> Unit) {
@@ -56,6 +57,8 @@ fun DashboardScreen(onQuickAdd: () -> Unit) {
 
     val profile by viewModel.profile.collectAsState()
     val total by viewModel.todayBufferedTotal.collectAsState()
+    val proteinTotal by viewModel.todayProteinTotal.collectAsState()
+    val rollingDeficit by viewModel.rollingDeficitKcal.collectAsState()
     val series by viewModel.rollingAverageSeries.collectAsState()
     val caloriesBurnedToday by viewModel.caloriesBurnedToday.collectAsState()
     val hcStatus by viewModel.healthConnectStatus.collectAsState()
@@ -90,6 +93,36 @@ fun DashboardScreen(onQuickAdd: () -> Unit) {
                     progress = (total.toFloat() / budget.toFloat()).coerceIn(0f, 1f),
                     overBudget = total > budget,
                     modifier = Modifier.padding(top = Spacing.sm),
+                )
+            }
+
+            // Feature C (spec §4): protein floor bar, right next to the calorie budget bar. A
+            // floor is the opposite direction of a budget (you want to be AT or ABOVE it, not
+            // under it) so this deliberately never passes overBudget=true -- a full bar here
+            // always reads as "good", never as an error state.
+            val proteinFloor = profile?.proteinFloorG ?: 0.0
+            if (proteinFloor > 0.0) {
+                PunchCardRow(modifier = Modifier.padding(top = Spacing.sm)) {
+                    Column {
+                        Text(
+                            "Protein: ${proteinTotal.roundToInt()}g / ${proteinFloor.roundToInt()}g floor",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        StartLineProgress(
+                            progress = (proteinTotal / proteinFloor).toFloat().coerceIn(0f, 1f),
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                    }
+                }
+            }
+
+            // Feature B (spec §3): rolling 7-day net-deficit card, under the today budget bar.
+            rollingDeficit?.let { deficit ->
+                LedReadout(
+                    value = if (deficit >= 0) "+$deficit" else deficit.toString(),
+                    label = "7-day net (banked deficit)",
+                    style = MaterialTheme.typography.displayMedium,
+                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
                 )
             }
 

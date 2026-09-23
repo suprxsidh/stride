@@ -44,6 +44,18 @@ class UserProfileRepositoryTest {
     }
 
     @Test
+    fun `protein floor defaults to 1_6 times weight when not supplied`() = runTest {
+        val profile = repo.completeOnboarding(heightCm = 178.0, weightKg = 80.0, age = 26, sex = Sex.MALE)
+        assertEquals(128.0, profile.proteinFloorG, 0.001) // 1.6 * 80
+    }
+
+    @Test
+    fun `explicit protein floor overrides the default`() = runTest {
+        val profile = repo.completeOnboarding(heightCm = 178.0, weightKg = 80.0, age = 26, sex = Sex.MALE, proteinFloorG = 150.0)
+        assertEquals(150.0, profile.proteinFloorG, 0.001)
+    }
+
+    @Test
     fun `completing onboarding also records a weigh-in for that day so the chart isn't empty`() = runTest {
         repo.completeOnboarding(heightCm = 178.0, weightKg = 80.0, age = 26, sex = Sex.MALE)
 

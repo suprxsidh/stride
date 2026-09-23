@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -38,12 +39,13 @@ class FoodRepository(
         }
     }.distinctUntilChanged()
 
-    private suspend fun log(name: String, rawKcal: Int, source: String): FoodEntryEntity {
+    private suspend fun log(name: String, rawKcal: Int, source: String, proteinG: Double = 0.0): FoodEntryEntity {
         val entity = FoodEntryEntity(
             date = todayKey(),
             name = name,
             rawKcal = rawKcal,
             bufferedKcal = CalorieMath.bufferedKcal(rawKcal),
+            proteinG = proteinG,
             source = source,
             loggedAt = nowMillis()
         )
@@ -56,14 +58,31 @@ class FoodRepository(
     suspend fun logCustomFood(food: CustomFoodEntity, servings: Double): FoodEntryEntity =
         log(food.name, (food.kcalPerServing * servings).roundToInt(), "CUSTOM")
 
-    suspend fun logGeminiEstimate(name: String, rawKcal: Int): FoodEntryEntity =
-        log(name, rawKcal, "GEMINI")
+    // Feature C (spec §4): proteinG defaults to 0.0 so any caller that doesn't have a protein
+    // estimate (there is none today, but keeps this source-compatible) doesn't need to change.
+    suspend fun logGeminiEstimate(name: String, rawKcal: Int, proteinG: Double = 0.0): FoodEntryEntity =
+        log(name, rawKcal, "GEMINI", proteinG)
 
     fun observeTodayEntries(): Flow<List<FoodEntryEntity>> =
         todayKeyFlow().flatMapLatest { foodEntryDao.observeForDate(it) }
 
     fun observeTodayBufferedTotal(): Flow<Int> =
         todayKeyFlow().flatMapLatest { foodEntryDao.observeBufferedTotalForDate(it) }
+
+    /** Feature C (spec §4): sibling of [observeTodayBufferedTotal] for the protein floor bar. */
+    fun observeTodayProteinTotal(): Flow<Double> =
+        todayKeyFlow().flatMapLatest { foodEntryDao.observeProteinTotalForDate(it) }
+
+    /**
+     * Feature B (spec §3): one grouped query across [start]..[end] (inclusive), keyed by logical
+     * date, for the rolling-deficit card. Days with no entries simply have no key in the
+     * returned map — [RollingDeficit.compute] is responsible for treating a missing day as zero
+     * consumed, not this repository.
+     */
+    fun observeBufferedTotalsForRange(start: LocalDate, end: LocalDate): Flow<Map<LocalDate, Int>> =
+        foodEntryDao.observeBufferedTotalsForRange(start.toString(), end.toString()).map { rows ->
+            rows.associate { LocalDate.parse(it.date) to it.total }
+        }
 
     /** History (Feature A): parallel to [observeTodayEntries] but for an arbitrary logical date,
      * so the dashboard's "today" flows above stay untouched. */

@@ -36,7 +36,10 @@ import com.suprxsidh.stride.data.db.entity.WeighInEntity
     // dead code once the exercise sync it fed was cut; only the weigh-in watermark remains.
     // fallbackToDestructiveMigration() below handles the upgrade, same convention as every prior
     // version bump.
-    version = 10,
+    // v11: completeness pass Feature C (protein floor) -- FoodEntryEntity gained proteinG,
+    // UserProfileEntity gained proteinFloorG. fallbackToDestructiveMigration() below handles the
+    // upgrade, same convention as every prior version bump.
+    version = 11,
     exportSchema = false
 )
 abstract class StrideDatabase : RoomDatabase() {

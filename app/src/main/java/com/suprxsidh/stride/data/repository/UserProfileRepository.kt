@@ -24,7 +24,10 @@ class UserProfileRepository(
         weightKg: Double,
         age: Int,
         sex: Sex,
-        goalWeightKg: Double? = null
+        goalWeightKg: Double? = null,
+        // Feature C (spec §4): "sane default (1.6 * weightKg), editable" — same optional-with-
+        // fallback shape as goalWeightKg just above.
+        proteinFloorG: Double? = null
     ): UserProfileEntity {
         val bmr = CalorieMath.bmr(weightKg, heightCm, age, sex)
         val tdee = CalorieMath.tdee(bmr)
@@ -35,6 +38,7 @@ class UserProfileRepository(
             sex = sex.name,
             goalWeightKg = goalWeightKg ?: (weightKg - 10.0),
             softBudgetKcal = CalorieMath.softBudgetKcal(tdee),
+            proteinFloorG = proteinFloorG ?: (1.6 * weightKg),
             createdAt = clock().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         )
         userProfileDao.upsert(entity)

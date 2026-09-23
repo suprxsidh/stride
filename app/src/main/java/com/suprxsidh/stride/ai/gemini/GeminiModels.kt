@@ -47,10 +47,13 @@ data class GeminiCandidate(val content: GeminiContent? = null)
 data class GeminiFoodEstimate(
     val items: List<GeminiFoodItem>,
     val totalKcal: Int,
+    // Feature C (completeness pass, spec §4): protein floor. Defaults to 0.0 so responses from
+    // before this field existed (and any test fixture JSON that doesn't set it) still decode.
+    val totalProteinG: Double = 0.0,
     val confidence: String
 )
 
 @Serializable
-data class GeminiFoodItem(val name: String, val kcal: Int)
+data class GeminiFoodItem(val name: String, val kcal: Int, val proteinG: Double = 0.0)
 
 class GeminiEstimationException(message: String, cause: Throwable? = null) : Exception(message, cause)

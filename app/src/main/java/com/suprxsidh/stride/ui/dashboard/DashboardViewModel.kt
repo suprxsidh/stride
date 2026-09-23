@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.suprxsidh.stride.data.calc.RollingDeficit
 import com.suprxsidh.stride.data.db.entity.UserProfileEntity
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.HealthConnectRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -45,6 +47,33 @@ class DashboardViewModel(
 
     val todayBufferedTotal: StateFlow<Int> =
         foodRepository.observeTodayBufferedTotal().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    // Feature C (spec §4): sibling of todayBufferedTotal for the protein floor bar.
+    val todayProteinTotal: StateFlow<Double> =
+        foodRepository.observeTodayProteinTotal().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.0)
+
+    // Feature B (spec §3): the trailing 7-logical-day window, anchored once at construction time
+    // off the same 3am-boundary "today" the rest of this repository already uses (see
+    // FoodRepository.currentLogicalDate). A freshly (re)created ViewModel -- e.g. reopening the
+    // dashboard the next day -- picks up the new anchor naturally since it's recomputed here.
+    private val rollingWindowEnd: LocalDate = foodRepository.currentLogicalDate()
+    private val rollingWindowStart: LocalDate = rollingWindowEnd.minusDays(6)
+    private val rollingWindowDates: List<LocalDate> =
+        generateSequence(rollingWindowStart) { it.plusDays(1) }.takeWhile { !it.isAfter(rollingWindowEnd) }.toList()
+
+    /**
+     * Null until a profile (and therefore a soft budget) exists. Positive = net deficit banked
+     * over the trailing week, negative = net surplus. See [RollingDeficit] for the missing-day
+     * handling (a day with no logged entries counts as a full day of budget banked, not skipped).
+     */
+    val rollingDeficitKcal: StateFlow<Int?> = combine(
+        profile,
+        foodRepository.observeBufferedTotalsForRange(rollingWindowStart, rollingWindowEnd)
+    ) { currentProfile, totals ->
+        val budget = currentProfile?.softBudgetKcal ?: return@combine null
+        if (budget <= 0) return@combine null
+        RollingDeficit.compute(rollingWindowDates, budget, totals)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val rollingAverageSeries: StateFlow<List<Pair<LocalDate, Double>>> =
         weightRepository.observeRollingAverageSeries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

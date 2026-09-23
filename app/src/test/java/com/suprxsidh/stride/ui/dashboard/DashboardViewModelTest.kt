@@ -104,6 +104,55 @@ class DashboardViewModelTest {
         assertEquals(1645, viewModel.profile.value?.softBudgetKcal)
     }
 
+    // Rolling deficit (spec §3) tests below.
+
+    @Test
+    fun `rollingDeficitKcal is null before onboarding`() = runTest(testDispatcher) {
+        backgroundScope.launch { viewModel.rollingDeficitKcal.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNull(viewModel.rollingDeficitKcal.value)
+    }
+
+    @Test
+    fun `rollingDeficitKcal banks a full budget for every day in the window when nothing is logged`() = runTest(testDispatcher) {
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        backgroundScope.launch { viewModel.rollingDeficitKcal.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1645 * 7, viewModel.rollingDeficitKcal.value)
+    }
+
+    @Test
+    fun `rollingDeficitKcal subtracts today's buffered total from the banked budget`() = runTest(testDispatcher) {
+        UserProfileRepository(db.userProfileDao(), db.weighInDao()).completeOnboarding(178.0, 80.0, 26, Sex.MALE)
+        db.foodEntryDao().insert(FoodEntryEntity(date = "2026-08-10", name = "Test", rawKcal = 200, bufferedKcal = 220, source = "QUICK", loggedAt = 1L))
+        backgroundScope.launch { viewModel.rollingDeficitKcal.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1645 * 7 - 220, viewModel.rollingDeficitKcal.value)
+    }
+
+    // Protein floor (spec §4) tests below.
+
+    @Test
+    fun `todayProteinTotal reflects logged entries' proteinG`() = runTest(testDispatcher) {
+        db.foodEntryDao().insert(
+            FoodEntryEntity(date = "2026-08-10", name = "Paneer bhurji", rawKcal = 300, bufferedKcal = 330, proteinG = 18.0, source = "GEMINI", loggedAt = 1L)
+        )
+        backgroundScope.launch { viewModel.todayProteinTotal.collect {} }
+        testDispatcher.scheduler.runCurrent()
+        assertEquals(18.0, viewModel.todayProteinTotal.value, 0.001)
+    }
+
+    @Test
+    fun `todayProteinTotal is zero before any entry is logged`() = runTest(testDispatcher) {
+        // runCurrent(), not advanceUntilIdle() -- todayProteinTotal is backed by the same
+        // infinite todayKeyFlow() poll loop as todayBufferedTotal (see the "today buffered
+        // total reflects logged entries" test above for the established precedent).
+        // advanceUntilIdle() never returns against an infinitely-rescheduling delay loop.
+        backgroundScope.launch { viewModel.todayProteinTotal.collect {} }
+        testDispatcher.scheduler.runCurrent()
+        assertEquals(0.0, viewModel.todayProteinTotal.value, 0.001)
+    }
+
     @Test
     fun `healthConnectStatus is UNAVAILABLE when the SDK isn't available`() = runTest(testDispatcher) {
         val viewModel = buildViewModel(
