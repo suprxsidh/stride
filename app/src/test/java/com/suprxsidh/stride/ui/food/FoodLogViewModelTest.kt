@@ -32,6 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -50,14 +51,17 @@ class FoodLogViewModelTest {
         }
     }
 
-    private fun buildViewModel(geminiApi: GeminiApi = FakeSucceedingGeminiApi()): FoodLogViewModel {
+    private fun buildViewModel(
+        geminiApi: GeminiApi = FakeSucceedingGeminiApi(),
+        initialDate: java.time.LocalDate? = null
+    ): FoodLogViewModel {
         val geminiFoodRepository = GeminiFoodRepository(
             estimator = GeminiFoodEstimator(geminiApi),
             settingsRepository = settingsRepository,
             foodRepository = foodRepository,
             pendingDraftDao = db.pendingDraftDao()
         )
-        return FoodLogViewModel(foodRepository, geminiFoodRepository)
+        return FoodLogViewModel(foodRepository, geminiFoodRepository, initialDate)
     }
 
     @Before
@@ -205,5 +209,126 @@ class FoodLogViewModelTest {
 
         assertNull(viewModel.reviewEstimate)
         assertEquals(0, foodRepository.observeTodayEntries().first().size)
+    }
+
+    // History (Feature A) tests below.
+
+    @Test
+    fun `selectedDate defaults to today per the repository's logical date`() = runTest(testDispatcher) {
+        val today = foodRepository.currentLogicalDate()
+        assertEquals(today, viewModel.selectedDate.value)
+    }
+
+    @Test
+    fun `an explicit initialDate is honored instead of defaulting to today`() = runTest(testDispatcher) {
+        val pastDate = java.time.LocalDate.of(2020, 1, 1)
+        val viewModel = buildViewModel(initialDate = pastDate)
+        assertEquals(pastDate, viewModel.selectedDate.value)
+    }
+
+    @Test
+    fun `goToPreviousDay and goToNextDay move the selected date and the entries it drives`() = runTest(testDispatcher) {
+        val today = foodRepository.currentLogicalDate()
+        val yesterday = today.minusDays(1)
+        // Seed yesterday via a second FoodRepository pinned to a fixed clock on that day, sharing
+        // the same underlying DAOs -- a plain insert against the real target date, rather than
+        // logging to today and moving it, since this is the same DB the viewModel's own
+        // FoodRepository reads from.
+        val yesterdaysClock = { LocalDateTime.of(yesterday.year, yesterday.monthValue, yesterday.dayOfMonth, 20, 0) }
+        val yesterdayRepository = FoodRepository(db.foodEntryDao(), db.customFoodDao(), clock = yesterdaysClock)
+        yesterdayRepository.logQuickAdd("Yesterday's dinner", 300)
+
+        backgroundScope.launch { viewModel.entriesForSelectedDate.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0, viewModel.entriesForSelectedDate.value.size)
+
+        viewModel.goToPreviousDay()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(yesterday, viewModel.selectedDate.value)
+        assertEquals(1, viewModel.entriesForSelectedDate.value.size)
+        assertEquals("Yesterday's dinner", viewModel.entriesForSelectedDate.value[0].name)
+
+        viewModel.goToNextDay()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(today, viewModel.selectedDate.value)
+        assertEquals(0, viewModel.entriesForSelectedDate.value.size)
+    }
+
+    @Test
+    fun `startEditingEntry pre-fills the edit fields from the tapped entry`() = runTest(testDispatcher) {
+        viewModel.quickAddName = "Poha"
+        viewModel.quickAddKcal = "300"
+        viewModel.logQuickAdd()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val entry = foodRepository.observeTodayEntries().first().first()
+
+        viewModel.startEditingEntry(entry)
+
+        assertEquals(entry, viewModel.editingEntry)
+        assertEquals("Poha", viewModel.editName)
+        assertEquals("300", viewModel.editKcal)
+        assertNull(viewModel.editError)
+    }
+
+    @Test
+    fun `saveEditedEntry updates name and buffered kcal in place and clears edit state`() = runTest(testDispatcher) {
+        viewModel.quickAddName = "Poha"
+        viewModel.quickAddKcal = "300"
+        viewModel.logQuickAdd()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val entry = foodRepository.observeTodayEntries().first().first()
+
+        viewModel.startEditingEntry(entry)
+        viewModel.editName = "Poha with peanuts"
+        viewModel.editKcal = "350"
+        viewModel.saveEditedEntry()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val updated = foodRepository.observeTodayEntries().first().first()
+        assertEquals(entry.id, updated.id)
+        assertEquals("Poha with peanuts", updated.name)
+        assertEquals(350, updated.rawKcal)
+        assertEquals(385, updated.bufferedKcal) // 350 * 1.1
+        assertNull(viewModel.editingEntry)
+        assertEquals("", viewModel.editName)
+        assertEquals("", viewModel.editKcal)
+    }
+
+    @Test
+    fun `saveEditedEntry with blank name sets an error and does not update the entry`() = runTest(testDispatcher) {
+        viewModel.quickAddName = "Poha"
+        viewModel.quickAddKcal = "300"
+        viewModel.logQuickAdd()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val entry = foodRepository.observeTodayEntries().first().first()
+
+        viewModel.startEditingEntry(entry)
+        viewModel.editName = ""
+        viewModel.saveEditedEntry()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Enter a food name.", viewModel.editError)
+        assertEquals(entry, viewModel.editingEntry)
+        val unchanged = foodRepository.observeTodayEntries().first().first()
+        assertEquals("Poha", unchanged.name)
+    }
+
+    @Test
+    fun `cancelEditingEntry clears edit state without changing the entry`() = runTest(testDispatcher) {
+        viewModel.quickAddName = "Poha"
+        viewModel.quickAddKcal = "300"
+        viewModel.logQuickAdd()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val entry = foodRepository.observeTodayEntries().first().first()
+
+        viewModel.startEditingEntry(entry)
+        viewModel.editName = "Something else"
+        viewModel.cancelEditingEntry()
+
+        assertNull(viewModel.editingEntry)
+        assertEquals("", viewModel.editName)
+        assertEquals("", viewModel.editKcal)
+        val unchanged = foodRepository.observeTodayEntries().first().first()
+        assertEquals("Poha", unchanged.name)
     }
 }

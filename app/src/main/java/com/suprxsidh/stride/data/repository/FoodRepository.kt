@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.math.roundToInt
@@ -23,7 +24,11 @@ class FoodRepository(
     private val todayPollIntervalMs: Long = 60_000,
     private val clock: () -> LocalDateTime = { LocalDateTime.now() }
 ) {
-    private fun todayKey(): String = DayBoundary.logicalDate(clock()).toString()
+    /** The current logical day per [DayBoundary]'s 3am rule — exposed so callers (e.g. History's
+     * default date) can anchor on the same "today" this repository already uses internally. */
+    fun currentLogicalDate(): LocalDate = DayBoundary.logicalDate(clock())
+
+    private fun todayKey(): String = currentLogicalDate().toString()
     private fun nowMillis(): Long = clock().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     private fun todayKeyFlow(): Flow<String> = flow {
@@ -59,6 +64,16 @@ class FoodRepository(
 
     fun observeTodayBufferedTotal(): Flow<Int> =
         todayKeyFlow().flatMapLatest { foodEntryDao.observeBufferedTotalForDate(it) }
+
+    /** History (Feature A): parallel to [observeTodayEntries] but for an arbitrary logical date,
+     * so the dashboard's "today" flows above stay untouched. */
+    fun observeEntriesForDate(date: LocalDate): Flow<List<FoodEntryEntity>> =
+        foodEntryDao.observeForDate(date.toString())
+
+    fun observeBufferedTotalForDate(date: LocalDate): Flow<Int> =
+        foodEntryDao.observeBufferedTotalForDate(date.toString())
+
+    suspend fun updateFoodEntry(entry: FoodEntryEntity) = foodEntryDao.update(entry)
 
     fun observeAllCustomFoods(): Flow<List<CustomFoodEntity>> = customFoodDao.observeAll()
     fun observePinnedCustomFoods(): Flow<List<CustomFoodEntity>> = customFoodDao.observePinned()

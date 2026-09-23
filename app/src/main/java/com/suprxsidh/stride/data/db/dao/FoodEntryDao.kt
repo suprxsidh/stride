@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.suprxsidh.stride.data.db.entity.FoodEntryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -11,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 interface FoodEntryDao {
     @Insert
     suspend fun insert(entry: FoodEntryEntity): Long
+
+    @Update
+    suspend fun update(entry: FoodEntryEntity)
 
     @Query("SELECT * FROM food_entry WHERE date = :date ORDER BY loggedAt ASC")
     fun observeForDate(date: String): Flow<List<FoodEntryEntity>>

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suprxsidh.stride.ai.gemini.GeminiFoodEstimate
+import com.suprxsidh.stride.data.calc.CalorieMath
 import com.suprxsidh.stride.data.db.dao.MAX_PINNED_SNACKS
 import com.suprxsidh.stride.data.db.entity.CustomFoodEntity
 import com.suprxsidh.stride.data.db.entity.FoodEntryEntity
@@ -13,21 +14,44 @@ import com.suprxsidh.stride.data.db.entity.PendingDraftEntity
 import com.suprxsidh.stride.data.repository.FoodRepository
 import com.suprxsidh.stride.data.repository.GeminiEstimateResult
 import com.suprxsidh.stride.data.repository.GeminiFoodRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDate
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class FoodLogViewModel(
     private val foodRepository: FoodRepository,
-    private val geminiFoodRepository: GeminiFoodRepository
+    private val geminiFoodRepository: GeminiFoodRepository,
+    initialDate: LocalDate? = null
 ) : ViewModel() {
 
-    val todayEntries: StateFlow<List<FoodEntryEntity>> =
-        foodRepository.observeTodayEntries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val todayBufferedTotal: StateFlow<Int> =
-        foodRepository.observeTodayBufferedTotal().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    // History (Feature A): the day currently being browsed, defaulting to today per the
+    // repository's own 3am logical-date rule so this stays consistent with everything else in
+    // the app that reasons about "today" (Dashboard's quick-add still always opens today, i.e.
+    // passes no initialDate — see StrideNavHost).
+    private val _selectedDate = MutableStateFlow(initialDate ?: foodRepository.currentLogicalDate())
+    val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
+
+    val entriesForSelectedDate: StateFlow<List<FoodEntryEntity>> =
+        _selectedDate.flatMapLatest { foodRepository.observeEntriesForDate(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val bufferedTotalForSelectedDate: StateFlow<Int> =
+        _selectedDate.flatMapLatest { foodRepository.observeBufferedTotalForDate(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    fun goToPreviousDay() { _selectedDate.value = _selectedDate.value.minusDays(1) }
+
+    // No ceiling on how far forward this can go — Room just returns an empty list for a dateless
+    // future day, same "no artificial floor/ceiling needed" call the spec makes for the past.
+    fun goToNextDay() { _selectedDate.value = _selectedDate.value.plusDays(1) }
+
     val pinnedFoods: StateFlow<List<CustomFoodEntity>> =
         foodRepository.observePinnedCustomFoods().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val allCustomFoods: StateFlow<List<CustomFoodEntity>> =
@@ -183,5 +207,50 @@ class FoodLogViewModel(
 
     fun deleteFoodEntry(entry: FoodEntryEntity) {
         viewModelScope.launch { foodRepository.deleteFoodEntry(entry) }
+    }
+
+    // History (Feature A): editing reuses the quick-add-style name+kcal fields rather than a
+    // second input model, pre-filled from the entry being edited.
+    var editingEntry by mutableStateOf<FoodEntryEntity?>(null)
+        private set
+    var editName by mutableStateOf("")
+    var editKcal by mutableStateOf("")
+
+    /** Set when [saveEditedEntry] rejects the current input; null once a submit attempt validates. */
+    var editError by mutableStateOf<String?>(null)
+        private set
+
+    fun startEditingEntry(entry: FoodEntryEntity) {
+        editingEntry = entry
+        editName = entry.name
+        editKcal = entry.rawKcal.toString()
+        editError = null
+    }
+
+    fun cancelEditingEntry() {
+        editingEntry = null
+        editName = ""
+        editKcal = ""
+        editError = null
+    }
+
+    fun saveEditedEntry() {
+        val original = editingEntry ?: return
+        val kcal = editKcal.toIntOrNull()
+        if (editName.isBlank() || kcal == null || kcal <= 0) {
+            editError = when {
+                editName.isBlank() -> "Enter a food name."
+                else -> "Enter a valid calorie amount."
+            }
+            return
+        }
+        editError = null
+        val updated = original.copy(name = editName, rawKcal = kcal, bufferedKcal = CalorieMath.bufferedKcal(kcal))
+        viewModelScope.launch {
+            foodRepository.updateFoodEntry(updated)
+            editingEntry = null
+            editName = ""
+            editKcal = ""
+        }
     }
 }

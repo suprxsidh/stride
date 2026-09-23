@@ -9,11 +9,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @RunWith(RobolectricTestRunner::class)
@@ -97,5 +99,69 @@ class FoodRepositoryTest {
             repo.observeTodayEntries().first { it.size == 1 }
         }
         assertEquals("Breakfast", entries[0].name)
+    }
+
+    // History (Feature A) tests below.
+
+    @Test
+    fun `observeEntriesForDate returns only entries logged against that logical date`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 12, 0) }
+        repo.logQuickAdd("Today's lunch", 400)
+
+        val yesterday = LocalDate.of(2026, 9, 19)
+        val yesterdayRepo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 19, 12, 0) }
+        yesterdayRepo.logQuickAdd("Yesterday's lunch", 300)
+
+        val todayEntries = repo.observeEntriesForDate(LocalDate.of(2026, 9, 20)).first()
+        assertEquals(1, todayEntries.size)
+        assertEquals("Today's lunch", todayEntries[0].name)
+
+        val yesterdayEntries = repo.observeEntriesForDate(yesterday).first()
+        assertEquals(1, yesterdayEntries.size)
+        assertEquals("Yesterday's lunch", yesterdayEntries[0].name)
+    }
+
+    @Test
+    fun `observeEntriesForDate returns an empty list for a day with no entries, not an error`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao())
+        val entries = repo.observeEntriesForDate(LocalDate.of(2019, 1, 1)).first()
+        assertTrue(entries.isEmpty())
+    }
+
+    @Test
+    fun `observeBufferedTotalForDate sums buffered kcal for the given date only`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 12, 0) }
+        repo.logQuickAdd("Meal 1", 100)
+        repo.logQuickAdd("Meal 2", 200)
+
+        val otherDayRepo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 21, 12, 0) }
+        otherDayRepo.logQuickAdd("Different day meal", 500)
+
+        val total = repo.observeBufferedTotalForDate(LocalDate.of(2026, 9, 20)).first()
+        assertEquals(330, total) // (100 + 200) * 1.1
+    }
+
+    @Test
+    fun `updateFoodEntry changes name and kcal in place without inserting a new row`() = runTest {
+        val repo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 12, 0) }
+        val entry = repo.logQuickAdd("Original name", 200)
+
+        repo.updateFoodEntry(entry.copy(name = "Corrected name", rawKcal = 250, bufferedKcal = 275))
+
+        val entries = repo.observeEntriesForDate(LocalDate.of(2026, 9, 20)).first()
+        assertEquals(1, entries.size)
+        assertEquals(entry.id, entries[0].id)
+        assertEquals("Corrected name", entries[0].name)
+        assertEquals(250, entries[0].rawKcal)
+        assertEquals(275, entries[0].bufferedKcal)
+    }
+
+    @Test
+    fun `currentLogicalDate applies the same 3am boundary as todayKey`() = runTest {
+        val lateNightRepo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 1, 0) }
+        assertEquals(LocalDate.of(2026, 9, 19), lateNightRepo.currentLogicalDate())
+
+        val morningRepo = FoodRepository(db.foodEntryDao(), db.customFoodDao()) { LocalDateTime.of(2026, 9, 20, 4, 0) }
+        assertEquals(LocalDate.of(2026, 9, 20), morningRepo.currentLogicalDate())
     }
 }
