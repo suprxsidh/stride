@@ -1,6 +1,8 @@
 package com.suprxsidh.stride.ui.onboarding
 
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -35,6 +39,7 @@ import com.suprxsidh.stride.StrideApp
 import com.suprxsidh.stride.data.calc.Sex
 import com.suprxsidh.stride.health.HealthConnectManager
 import com.suprxsidh.stride.health.HealthConnectSyncWorker
+import com.suprxsidh.stride.reminders.ReminderScheduler
 import com.suprxsidh.stride.ui.theme.Spacing
 import com.suprxsidh.stride.ui.theme.StrideOnSurfaceMuted
 import com.suprxsidh.stride.ui.theme.StridePositive
@@ -45,7 +50,10 @@ import kotlinx.coroutines.launch
 private enum class OnboardingStep {
     PROFILE_ENTRY,
     HEALTH_CONNECT_SETUP,
-    BATTERY_OPTIMIZATION_SETUP
+    BATTERY_OPTIMIZATION_SETUP,
+    // Feature E (completeness pass, spec §6): placed last, after battery optimization, per the
+    // design doc's explicit ordering.
+    REMINDER_SETUP
 }
 
 @Composable
@@ -103,7 +111,41 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             BatteryOptimizationSetupStep(
                 ignored = ignored,
                 onOpenSettings = { context.startActivity(com.suprxsidh.stride.system.BatteryOptimization.batterySettingsIntent()) },
-                onContinue = onComplete
+                onContinue = { step = OnboardingStep.REMINDER_SETUP }
+            )
+        }
+        OnboardingStep.REMINDER_SETUP -> {
+            val app = LocalContext.current.applicationContext as StrideApp
+            val reminderViewModel: ReminderSetupViewModel = viewModel(factory = viewModelFactory {
+                initializer { ReminderSetupViewModel(app.container.reminderRepository) }
+            })
+            val context = LocalContext.current
+            var notificationsGranted by remember {
+                mutableStateOf(
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                        androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.POST_NOTIFICATIONS
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                )
+            }
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { granted -> notificationsGranted = granted }
+
+            ReminderSetupStep(
+                viewModel = reminderViewModel,
+                notificationsGranted = notificationsGranted,
+                showNotificationPermissionRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+                onRequestNotificationPermission = {
+                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                },
+                onFinish = {
+                    scope.launch {
+                        if (reminderViewModel.commit(ReminderScheduler(app))) {
+                            onComplete()
+                        }
+                    }
+                }
             )
         }
     }
@@ -254,5 +296,112 @@ private fun BatteryOptimizationSetupStep(
         }
         Spacer(Modifier.height(Spacing.md))
         TextButton(onClick = onContinue) { Text(if (ignored) "Continue" else "Skip for now") }
+    }
+}
+
+/**
+ * Feature E (completeness pass, spec §6): the last onboarding step. Requests `POST_NOTIFICATIONS`
+ * (API 33+ only -- below that, notifications need no runtime grant) and lets the user accept the
+ * SPEC defaults or edit/add/remove reminder times for all three types before finishing.
+ */
+@Composable
+private fun ReminderSetupStep(
+    viewModel: ReminderSetupViewModel,
+    notificationsGranted: Boolean,
+    showNotificationPermissionRequest: Boolean,
+    onRequestNotificationPermission: () -> Unit,
+    onFinish: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Text("Set up reminders".uppercase(), style = MaterialTheme.typography.titleLarge)
+        StartLineDivider()
+        Text(
+            "Defaults are below -- edit any time, or add/remove meals and snacks. All of this is " +
+                "editable later too.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+
+        if (showNotificationPermissionRequest) {
+            if (notificationsGranted) {
+                Text("Notifications allowed ✓", color = StridePositive, style = MaterialTheme.typography.bodyLarge)
+            } else {
+                Button(onClick = onRequestNotificationPermission) { Text("Allow notifications") }
+            }
+        }
+
+        Text("Weigh-in".uppercase(), style = MaterialTheme.typography.titleMedium)
+        OutlinedTextField(
+            value = viewModel.weighInTime,
+            onValueChange = { viewModel.weighInTime = it },
+            label = { Text("Time (HH:mm)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        StartLineDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+        Text("Meals".uppercase(), style = MaterialTheme.typography.titleMedium)
+        Text(
+            "A quiet nudge fires 45 minutes before each meal time.",
+            style = MaterialTheme.typography.bodySmall,
+            color = StrideOnSurfaceMuted,
+        )
+        viewModel.mealRows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                OutlinedTextField(
+                    value = row.label,
+                    onValueChange = { row.label = it },
+                    label = { Text("Label") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = row.time,
+                    onValueChange = { row.time = it },
+                    label = { Text("HH:mm") },
+                    singleLine = true,
+                    modifier = Modifier.width(100.dp)
+                )
+                TextButton(onClick = { viewModel.removeMeal(row) }) { Text("Remove") }
+            }
+        }
+        TextButton(onClick = { viewModel.addMeal() }) { Text("Add meal") }
+
+        StartLineDivider(modifier = Modifier.padding(vertical = Spacing.sm))
+        Text("Snacks".uppercase(), style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Fires exactly at the configured time -- no lead time.",
+            style = MaterialTheme.typography.bodySmall,
+            color = StrideOnSurfaceMuted,
+        )
+        viewModel.snackRows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                OutlinedTextField(
+                    value = row.label,
+                    onValueChange = { row.label = it },
+                    label = { Text("Label") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = row.time,
+                    onValueChange = { row.time = it },
+                    label = { Text("HH:mm") },
+                    singleLine = true,
+                    modifier = Modifier.width(100.dp)
+                )
+                TextButton(onClick = { viewModel.removeSnack(row) }) { Text("Remove") }
+            }
+        }
+        TextButton(onClick = { viewModel.addSnack() }) { Text("Add snack") }
+
+        viewModel.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+        Spacer(Modifier.height(Spacing.md))
+        Button(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
+            Text("Finish setup".uppercase(), style = MaterialTheme.typography.titleMedium)
+        }
     }
 }

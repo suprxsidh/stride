@@ -7,6 +7,16 @@
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
 
+    <!-- Feature E (completeness pass, spec section 6 / SPEC.md section 4.1): AlarmManager exact
+         alarms for every reminder type. WorkManager is unreliable for time-of-day reminders on
+         this OEM and is reserved for Health Connect sync only. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- API 33+ runtime permission, requested from the new ReminderSetupStep onboarding step. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Normal permission (auto-granted); lets BootCompletedReceiver reschedule alarms, which
+         don't survive a reboot on their own. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
@@ -25,6 +35,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@android:style/Theme.Material.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -53,6 +64,24 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Feature E (completeness pass, spec section 6): one receiver for all three reminder
+             types (scheduled fire + direct-reply), never exported: only ever targeted by this
+             app's own AlarmManager/notification PendingIntents, never by an external broadcast. -->
+        <receiver
+            android:name=".reminders.ReminderAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Alarms don't survive a reboot; this reschedules everything from the DB once the
+             device finishes booting (SPEC.md section 4.1). BOOT_COMPLETED is a protected system
+             broadcast, so this must be exported for the system to deliver it. -->
+        <receiver
+            android:name=".reminders.BootCompletedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

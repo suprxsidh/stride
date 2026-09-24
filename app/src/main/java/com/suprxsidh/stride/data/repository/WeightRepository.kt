@@ -35,6 +35,16 @@ class WeightRepository(
         return result
     }
 
+    /**
+     * Feature E (completeness pass, spec §6): the weigh-in reminder's smart-suppression check --
+     * "if a weigh-in already exists for today ... the notification is silently skipped" (SPEC
+     * §3.15). Reuses the same [DayBoundary] logical-date rule [logWeighIn] itself uses, so a
+     * weigh-in logged after midnight but before the 3am boundary still correctly counts as
+     * "today" for suppression purposes too.
+     */
+    suspend fun hasWeighInForToday(): Boolean =
+        weighInDao.getForDate(DayBoundary.logicalDate(clock()).toString()) != null
+
     fun observeRollingAverageSeries(): Flow<List<Pair<LocalDate, Double>>> =
         weighInDao.observeAll().map { entries ->
             RollingAverage.sevenDayRollingAverage(entries.map { WeighInPoint(LocalDate.parse(it.date), it.weightKg) })
